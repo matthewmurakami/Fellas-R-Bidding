@@ -9,6 +9,14 @@ import random
 import gzip
 import json
 from path_utils import path_from_local_root
+import numpy as np
+
+
+
+
+KERNEL = np.array([[1/9, 1/9, 1/9],
+                   [1/9, 1/9, 1/9],
+                   [1/9, 1/9, 1/9]])
 
 
 NAME = 'Fellas-R-Bidding'
@@ -19,20 +27,34 @@ class MyAgent(MyLSVMAgent):
         pass 
     
     def national_bidder_strategy(self): 
-        # TODO: Fill out with your national bidder strategy
-        min_bids = self.get_min_bids()
-        valuations = self.get_valuations() 
-        bids = {} 
-        ...
-        return bids
+        return self.regional_bidder_strategy(self)
+
 
     def regional_bidder_strategy(self): 
         # TODO: Fill out with your regional bidder strategy
         min_bids = self.get_min_bids()
         valuations = self.get_valuations() 
+        goods = self.get_goods()
+
         bids = {} 
-        ...
+
+        for good in goods:
+
+            self.proximity()
+
+
+
+
+            good_val = valuations[good]
+            good_min_bid = min_bids[good]
+
+            if good_min_bid <= good_val:
+                bids[good] = good_min_bid
+            else:
+                bids[good] = None
+
         return bids
+
 
     def get_bids(self):
         if self.is_national_bidder(): 
@@ -40,9 +62,8 @@ class MyAgent(MyLSVMAgent):
         else: 
             return self.regional_bidder_strategy()
     
-    def update(self):
-        #TODO: Fill out with anything you want to update each round
-        pass 
+
+
 
 ################### SUBMISSION #####################
 my_agent_submission = MyAgent(NAME)
@@ -110,19 +131,33 @@ if __name__ == "__main__":
     # process_saved_dir(path_from_local_root("saved_games"))
     
     ### DO NOT TOUCH THIS #####
-    agent = MyAgent(NAME)
+    # agent = MyAgent(NAME)
+    # arena = LSVMArena(
+    #     num_cycles_per_player = 3,
+    #     timeout=1,
+    #     local_save_path="saved_games",
+    #     players=[
+    #         agent,
+    #         MyAgent("CP - MyAgent"),
+    #         MyAgent("CP2 - MyAgent"),
+    #         MyAgent("CP3 - MyAgent"),
+    #         MinBidAgent("Min Bidder"), 
+    #         JumpBidder("Jump Bidder"), 
+    #         TruthfulBidder("Truthful Bidder"), 
+    #     ]
+    # )
+
     arena = LSVMArena(
         num_cycles_per_player = 3,
         timeout=1,
         local_save_path="saved_games",
         players=[
-            agent,
-            MyAgent("CP - MyAgent"),
-            MyAgent("CP2 - MyAgent"),
-            MyAgent("CP3 - MyAgent"),
-            MinBidAgent("Min Bidder"), 
+            MinBidAgent("Min Bidder"),
+            MinBidAgent("Min Bidder2"),
             JumpBidder("Jump Bidder"), 
+            JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"), 
+            TruthfulBidder("Truthful Bidder2") 
         ]
     )
     
