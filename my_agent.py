@@ -110,8 +110,7 @@ def process_saved_game(filepath):
                 regional_good = agent_data['regional_good']
             
             # TODO: If you are planning on learning from previously saved games enter your code below. 
-            
-            
+            yield util_history
         
 def process_saved_dir(dirpath): 
     """ 
@@ -120,7 +119,7 @@ def process_saved_dir(dirpath):
     for filename in os.listdir(dirpath):
         if filename.endswith('.json.gz'):
             filepath = os.path.join(dirpath, filename)
-            process_saved_game(filepath)
+            yield process_saved_game(filepath)
             
 
 if __name__ == "__main__":
