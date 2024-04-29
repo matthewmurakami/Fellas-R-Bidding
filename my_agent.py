@@ -27,10 +27,10 @@ class MyAgent(MyLSVMAgent):
         pass 
     
     def national_bidder_strategy(self): 
-        return self.regional_bidder_strategy(self)
+        return self.regional_bidder_strategy()
 
 
-    def regional_bidder_strategy(self): 
+    def regional_bidder_strategy(self):
         # TODO: Fill out with your regional bidder strategy
         min_bids = self.get_min_bids()
         valuations = self.get_valuations() 
@@ -79,6 +79,8 @@ def process_saved_game(filepath):
     # NOTE: Data is a dictionary mapping 
     with gzip.open(filepath, 'rt', encoding='UTF-8') as f:
         game_data = json.load(f)
+        datax = None
+        datay = np.array([])
         for agent, agent_data in game_data.items(): 
             if agent_data['valuations'] is not None: 
                 # agent is the name of the agent whose data is being processed 
@@ -109,17 +111,33 @@ def process_saved_game(filepath):
                 # This is None in the case that the bidder is a national bidder 
                 regional_good = agent_data['regional_good']
             
-            # TODO: If you are planning on learning from previously saved games enter your code below. 
-            yield util_history
+                # TODO: If you are planning on learning from previously saved games enter your code below. 
+                datay = np.append(datay,np.array(util_history))
+
+                prices = np.array(list(map(lambda x: MyLSVMAgent.map_to_ndarray(my_agent_submission, x).flatten(), price_history)))
+                values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations).flatten()])
+                if datax is None:
+                    datax = values - prices
+                else:
+                    datax = np.append(datax,values - prices, axis=0)
+        return datax, datay
         
 def process_saved_dir(dirpath): 
     """ 
      Here is some example code to load in all saved game in the format of a json.gz in a directory and to work with it
     """
+    datax = None
+    datay = np.array([])
     for filename in os.listdir(dirpath):
         if filename.endswith('.json.gz'):
             filepath = os.path.join(dirpath, filename)
-            yield process_saved_game(filepath)
+            filedatax, filedatay = process_saved_game(filepath)
+            if datax is None:
+                datax = filedatax
+            else:
+                datax = np.append(datax, filedatax,axis=0)
+            datay = np.append(datay, filedatay)
+    return datax, datay
             
 
 if __name__ == "__main__":
