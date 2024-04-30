@@ -3,6 +3,7 @@ from agt_server.local_games.lsvm_arena import LSVMArena
 from agt_server.agents.test_agents.lsvm.min_bidder.my_agent import MinBidAgent
 from agt_server.agents.test_agents.lsvm.jump_bidder.jump_bidder import JumpBidder
 from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import TruthfulBidder
+from prediction_model import PredictionNetwork
 import time
 import os
 import random
@@ -12,14 +13,76 @@ from path_utils import path_from_local_root
 import numpy as np
 
 
-
-
-KERNEL = np.array([[1/9, 1/9, 1/9],
-                   [1/9, 1/9, 1/9],
-                   [1/9, 1/9, 1/9]])
-
-
 NAME = 'Fellas-R-Bidding'
+
+class TrainingAgent(MyLSVMAgent):
+    def setup(self):
+        pass 
+    
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+    def get_averages(self, val_matrix):
+        avg_matrix = np.zeros((3,6))
+
+        for iy, ix in np.ndindex(val_matrix.shape):
+            neighbors = np.array(())
+            if(iy - 1 >= 0):
+                neighbors = np.append(neighbors, val_matrix[iy-1, ix])
+            if(iy + 1 < 3):
+                neighbors = np.append(neighbors, val_matrix[iy+1, ix])
+            if(ix - 1 >= 0):
+                neighbors = np.append(neighbors, val_matrix[iy, ix-1])
+            if(ix + 1 < 6):
+                neighbors = np.append(neighbors, val_matrix[iy, ix+1])
+            avg_matrix[iy,ix] = np.average(neighbors)
+        return avg_matrix
+
+    def regional_bidder_strategy(self): 
+        min_bids = self.get_min_bids()
+        valuations = self.get_valuations() 
+        goods = self.get_goods()
+        bids = {} 
+
+        val_matrix = self.get_valuation_as_array()
+
+        avg_val_matrix = self.get_averages(val_matrix)
+
+        max = np.max(avg_val_matrix)
+        locX,loxY = np.where(avg_val_matrix == max)
+        loc = (locX[0],loxY[0])
+        #print(loc)
+
+        for good in goods:
+            good_val = valuations[good]
+            good_min_bid = min_bids[good]
+
+            if loc == self.get_goods_to_index()[good] or \
+                (abs(loc[0] - self.get_goods_to_index()[good][0]) == 1 and loc[1] == self.get_goods_to_index()[good][1]) or \
+                (abs(loc[1] - self.get_goods_to_index()[good][1]) == 1 and loc[0] == self.get_goods_to_index()[good][0]):   
+            
+                if good_min_bid <= good_val + 1:
+                    bids[good] = good_min_bid
+                else:
+                    bids[good] = 0
+            else:
+                if good_min_bid <= good_val:
+                    bids[good] = good_min_bid
+                else:
+                    bids[good] = 0
+
+        return bids
+
+    def get_bids(self):
+        if self.is_national_bidder(): 
+            return self.national_bidder_strategy()
+        else: 
+            return self.regional_bidder_strategy()
+    
+    def update(self):
+        pass 
+
+
 
 class MyAgent(MyLSVMAgent):
     def setup(self):
@@ -41,8 +104,6 @@ class MyAgent(MyLSVMAgent):
         for good in goods:
 
             self.proximity()
-
-
 
 
             good_val = valuations[good]
@@ -80,7 +141,7 @@ def process_saved_game(filepath):
     with gzip.open(filepath, 'rt', encoding='UTF-8') as f:
         game_data = json.load(f)
         datax = None
-        datay = np.array([])
+        datay = None
         for agent, agent_data in game_data.items(): 
             if agent_data['valuations'] is not None: 
                 # agent is the name of the agent whose data is being processed 
@@ -112,14 +173,23 @@ def process_saved_game(filepath):
                 regional_good = agent_data['regional_good']
             
                 # TODO: If you are planning on learning from previously saved games enter your code below. 
-                datay = np.append(datay,np.array(util_history))
+                won_items = (MyLSVMAgent.map_to_ndarray(my_agent_submission, winner_history[-1], np.dtype('U100')) == agent).reshape(1,18)
 
-                prices = np.array(list(map(lambda x: MyLSVMAgent.map_to_ndarray(my_agent_submission, x).flatten(), price_history)))
                 values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations).flatten()])
+
                 if datax is None:
-                    datax = values - prices
+                    datay = won_items
+                    datax = values
                 else:
-                    datax = np.append(datax,values - prices, axis=0)
+                    datay = np.append(datay, won_items, axis=0)
+                    datax = np.append(datax, values, axis=0)
+                
+                # prices = np.array(list(map(lambda x: MyLSVMAgent.map_to_ndarray(my_agent_submission, x).flatten(), price_history)))
+                # values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations).flatten()])
+                # if datax is None:
+                #     datax = values - prices
+                # else:
+                #     datax = np.append(datax,values - prices, axis=0)
         return datax, datay
         
 def process_saved_dir(dirpath): 
@@ -127,16 +197,17 @@ def process_saved_dir(dirpath):
      Here is some example code to load in all saved game in the format of a json.gz in a directory and to work with it
     """
     datax = None
-    datay = np.array([])
+    datay = None
     for filename in os.listdir(dirpath):
         if filename.endswith('.json.gz'):
             filepath = os.path.join(dirpath, filename)
             filedatax, filedatay = process_saved_game(filepath)
             if datax is None:
                 datax = filedatax
+                datay = filedatay
             else:
                 datax = np.append(datax, filedatax,axis=0)
-            datay = np.append(datay, filedatay)
+                datay = np.append(datay, filedatay,axis=0)
     return datax, datay
             
 
@@ -165,7 +236,7 @@ if __name__ == "__main__":
     # )
 
     arena = LSVMArena(
-        num_cycles_per_player = 3,
+        num_cycles_per_player = 10,
         timeout=1,
         local_save_path="saved_games",
         players=[
@@ -174,7 +245,7 @@ if __name__ == "__main__":
             JumpBidder("Jump Bidder"), 
             JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"), 
-            TruthfulBidder("Truthful Bidder2") 
+            TrainingAgent("TrainingAgent") 
         ]
     )
     

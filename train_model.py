@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from my_agent import process_saved_dir
 import numpy as np
 from allocation_model import AllocationNetwork
+from prediction_model import PredictionNetwork
 from sklearn.model_selection import train_test_split
 
 # Get cpu, gpu or mps device for training.
@@ -48,10 +49,13 @@ def test(dataloader, model):
             X, y = X.to(device), y.to(device)
             pred = model(X)
             test_loss += model.loss_fn(pred, y).item()
-            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+            # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+            correct += (y - pred).absolute().sum()  
     test_loss /= num_batches
-    correct /= size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    # correct /= size
+    correct /= size*18
+    # print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    print(f"Test Error: \n Prediction Error: {(correct):>0.001f}, Avg loss: {test_loss:>8f} \n")
 
 
 if __name__ == "__main__":
@@ -66,11 +70,11 @@ if __name__ == "__main__":
     # set up DataLoader for training set
     loader = DataLoader(list(zip(X_train, y_train)), shuffle=True, batch_size=32)
 
-    model = AllocationNetwork()
+    model = PredictionNetwork()
     model = model.to(device)
 
 
-    epochs = 5
+    epochs = 10
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train(loader, model)
