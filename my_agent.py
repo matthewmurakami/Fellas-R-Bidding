@@ -11,8 +11,9 @@ import gzip
 import json
 from path_utils import path_from_local_root
 import numpy as np
+from torch import load, from_numpy
 
-
+MODELS_PATH = "models/"
 NAME = 'Fellas-R-Bidding'
 
 class TrainingAgent(MyLSVMAgent):
@@ -86,30 +87,37 @@ class TrainingAgent(MyLSVMAgent):
 
 class MyAgent(MyLSVMAgent):
     def setup(self):
-        #TODO: Fill out with anything you want to initialize each auction
-        pass 
-    
+        self.model = PredictionNetwork()
+        if os.path.isfile(MODELS_PATH + "{self.name}.pth"):
+            self.model.load_state_dict(load(MODELS_PATH + "{self.name}.pth"))
+        return
+
+
     def national_bidder_strategy(self): 
         return self.regional_bidder_strategy()
 
 
     def regional_bidder_strategy(self):
-        # TODO: Fill out with your regional bidder strategy
+
         min_bids = self.get_min_bids()
         valuations = self.get_valuations() 
         goods = self.get_goods()
 
         bids = {} 
+        
+        x = from_numpy(self.map_to_ndarray(valuations).astype(np.float32)).unsqueeze(0)
+        x = self.model(x)
+
+        
 
         for good in goods:
-
-            self.proximity()
-
-
             good_val = valuations[good]
             good_min_bid = min_bids[good]
 
-            if good_min_bid <= good_val:
+            index = self.get_goods_to_index()[good]
+            index = index[0]*6 + index[1]
+
+            if good_min_bid <= good_val + x[index]:
                 bids[good] = good_min_bid
             else:
                 bids[good] = None
@@ -173,15 +181,16 @@ def process_saved_game(filepath):
                 regional_good = agent_data['regional_good']
             
                 # TODO: If you are planning on learning from previously saved games enter your code below. 
-                won_items = (MyLSVMAgent.map_to_ndarray(my_agent_submission, winner_history[-1], np.dtype('U100')) == agent).reshape(1,18)
+                # won_items = (MyLSVMAgent.map_to_ndarray(my_agent_submission, winner_history[-1], np.dtype('U100')) == agent).reshape(1,18)
 
-                values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations).flatten()])
+                values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations)])
+                elos = np.array([(agent, elo(int))])
 
                 if datax is None:
-                    datay = won_items
+                    datay = elos
                     datax = values
                 else:
-                    datay = np.append(datay, won_items, axis=0)
+                    datay = np.append(datay, elos, axis=0)
                     datax = np.append(datax, values, axis=0)
                 
                 # prices = np.array(list(map(lambda x: MyLSVMAgent.map_to_ndarray(my_agent_submission, x).flatten(), price_history)))
@@ -190,6 +199,7 @@ def process_saved_game(filepath):
                 #     datax = values - prices
                 # else:
                 #     datax = np.append(datax,values - prices, axis=0)
+            print("datax:", datax, "datay:", datay)
         return datax, datay
         
 def process_saved_dir(dirpath): 
