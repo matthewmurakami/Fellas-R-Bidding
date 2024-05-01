@@ -1,4 +1,4 @@
-import torch
+import torch, sys, os
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
@@ -16,6 +16,7 @@ from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import Truthful
 from my_agent import MyAgent
 import time
 from torchsummary import summary
+
 
 
 # Get cpu, gpu or mps device for training.
@@ -132,8 +133,8 @@ def initialize_population(names):
     population = []
     for i in range(POPULATION_SIZE):
         model = PredictionNetwork(name=names[i])
-        print(summary(model, (1,3,6)))
-        exit()
+        # print(summary(model, (1,3,6)))
+        # exit()
         population.append(model)
     return population
 
@@ -179,30 +180,36 @@ if __name__ == "__main__":
         best_accuracy = 0
         best_individual = None
 
-        names = ["Generation: " + str(generation)+ " Bot: " + str(i) for i in range(POPULATION_SIZE)]
+        names = ["Generation_" + str(generation)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
         # Initialize population
         if population is None:
             population = initialize_population(names)
         
+        for i, player in enumerate(population):
+            torch.save(player.state_dict(), MODELS_PATH + names[i] + '.pth')
+        
         population_players = [MyAgent(name) for name in names]
 
-        for i, player in enumerate(population):
-            torch.save(player.state_dict(), MODELS_PATH + "{names[i]}")
     
         default_players=[
             MinBidAgent("Min Bidder"),
             JumpBidder("Jump Bidder"), 
-            TruthfulBidder("Truthful Bidder")]
+            TruthfulBidder("Truthful Bidder"),
+            MinBidAgent("Min Bidder2"),
+            JumpBidder("Jump Bidder2"), 
+            TruthfulBidder("Truthful Bidder2")]
 
 
         arena = LSVMArena(
             num_cycles_per_player = 10,
             timeout=1,
             local_save_path="saved_games",
-            players=population_players,
+            players=default_players,
         )
         
+        # sys.stdout = open(os.devnull, 'w')
         arena.run()
+        # sys.stdout = sys.__stdout__
 
         datax, datay = process_saved_dir("saved_games")
         tensor_x = torch.Tensor(datax) 

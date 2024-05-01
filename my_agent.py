@@ -6,10 +6,8 @@ from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import Truthful
 from prediction_model import PredictionNetwork
 import time
 import os
-import random
 import gzip
 import json
-from path_utils import path_from_local_root
 import numpy as np
 from torch import load, from_numpy
 
@@ -88,9 +86,8 @@ class TrainingAgent(MyLSVMAgent):
 class MyAgent(MyLSVMAgent):
     def setup(self):
         self.model = PredictionNetwork()
-        if os.path.isfile(MODELS_PATH + "{self.name}.pth"):
-            self.model.load_state_dict(load(MODELS_PATH + "{self.name}.pth"))
-        return
+        if os.path.isfile(MODELS_PATH + self.name + ".pth"):
+            self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
 
 
     def national_bidder_strategy(self): 
@@ -104,8 +101,9 @@ class MyAgent(MyLSVMAgent):
         goods = self.get_goods()
 
         bids = {} 
-        
-        x = from_numpy(self.map_to_ndarray(valuations).astype(np.float32)).unsqueeze(0)
+        x = from_numpy(self.map_to_ndarray(valuations).astype(np.float32))
+        x = x.unsqueeze(0)
+
         x = self.model(x)
 
         
@@ -130,6 +128,10 @@ class MyAgent(MyLSVMAgent):
             return self.national_bidder_strategy()
         else: 
             return self.regional_bidder_strategy()
+    
+    def update(self):
+        pass 
+        
     
 
 
