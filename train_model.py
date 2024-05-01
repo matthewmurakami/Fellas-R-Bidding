@@ -1,7 +1,8 @@
+import glob
 import torch, sys, os
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms
+# from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from my_agent import process_saved_dir
 import numpy as np
@@ -16,8 +17,7 @@ from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import Truthful
 from my_agent import MyAgent
 import time
 from torchsummary import summary
-
-
+import random
 
 # Get cpu, gpu or mps device for training.
 device = (
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
 
 # Genetic algorithm parameters
-POPULATION_SIZE = 10
+POPULATION_SIZE = 6
 MUTATION_RATE = 0.1
 NUM_GENERATIONS = 5
 
@@ -139,9 +139,9 @@ def initialize_population(names):
     return population
 
 # Crossover operator: Single-point crossover
-def crossover(parent1, parent2):
-    child1 = PredictionNetwork()
-    child2 = PredictionNetwork()
+def crossover(parent1, parent2, name1, name2):
+    child1 = PredictionNetwork(name=name1)
+    child2 = PredictionNetwork(name=name2)
     child1.conv1.weight.data = torch.cat((parent1.conv1.weight.data[:16], parent2.conv1.weight.data[16:]), dim=0)
     child2.conv1.weight.data = torch.cat((parent2.conv1.weight.data[:16], parent1.conv1.weight.data[16:]), dim=0)
     return child1, child2
@@ -174,15 +174,19 @@ MODELS_PATH = "models/"
 if __name__ == "__main__":
 
     population = None
-
+    names = None
     for generation in range(NUM_GENERATIONS):
+        files = glob.glob('saved_games/*')
+        for f in files:
+            os.remove(f)
         print("Generation:", generation + 1)
         best_accuracy = 0
         best_individual = None
 
-        names = ["Generation_" + str(generation)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
+       
         # Initialize population
         if population is None:
+            names = ["Generation_" + str(generation)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
             population = initialize_population(names)
         
         for i, player in enumerate(population):
@@ -194,17 +198,14 @@ if __name__ == "__main__":
         default_players=[
             MinBidAgent("Min Bidder"),
             JumpBidder("Jump Bidder"), 
-            TruthfulBidder("Truthful Bidder"),
-            MinBidAgent("Min Bidder2"),
-            JumpBidder("Jump Bidder2"), 
-            TruthfulBidder("Truthful Bidder2")]
+            TruthfulBidder("Truthful Bidder"),]
 
 
         arena = LSVMArena(
-            num_cycles_per_player = 10,
+            num_cycles_per_player = 1,
             timeout=1,
             local_save_path="saved_games",
-            players=default_players,
+            players=population_players,
         )
         
         # sys.stdout = open(os.devnull, 'w')
@@ -212,19 +213,24 @@ if __name__ == "__main__":
         # sys.stdout = sys.__stdout__
 
         datax, datay = process_saved_dir("saved_games")
-        tensor_x = torch.Tensor(datax) 
-        tensor_y = torch.Tensor(datay)
+    
 
-        player_datax = []
-        player_datay = []
-        for i in range(tensor_x.shape[0]):
-            name = tensor_y[i][0]
-            player_datax[name] += tensor_x[i]
-            player_datay[name] += tensor_y[i][1]
+        player_datax = {}
+        player_datay = {}
+        for i in range(datax.shape[0]):
+            name = datay[i][0]
+            if name not in player_datax:
+                player_datax[name] = datax[i].astype(np.float32)
+                player_datay[name] = datay[i][1].astype(np.float32)
+            else:
+                player_datax[name] = np.append(player_datax[name],(datax[i])).astype(np.float32)
+                player_datay[name] = np.append(player_datay[name],(datay[i][1])).astype(np.float32)
+            
 
         # Compute fitness for each individual
         fitness_arr = []
         for individual in population:
+            print(individual.name)
             name = individual.name
             # X_train, X_test, y_train, y_test = train_test_split(player_datax[name], player_datay[name], train_size=0.7, shuffle=True)
         
@@ -235,9 +241,10 @@ if __name__ == "__main__":
 
             elo = player_datay[name]
 
-            for i in range(len(elo)):
-                elo[i] = (1/(len(elo) - i)) * elo[i]
-            fitness = sum(elo)/len(elo)
+            # for i in range(len(elo)):
+            #     elo[i] = (1/(elo.shape[0] - i)) * elo[i]
+            # fitness = np.sum(elo)/elo.shape[0]
+            fitness = np.average(elo)
 
             if fitness > best_accuracy:
                 best_accuracy = fitness
@@ -248,21 +255,19 @@ if __name__ == "__main__":
         fitness_arr = quickSort(fitness_arr)
 
         print("Best accuracy in generation", generation + 1, ":", best_accuracy)
-        print("Best individual:", best_individual)
+        print("Best individual:", best_individual.name)
 
         next_generation = []
 
         # Select top individuals for next generation
-        selected_individuals = fitness_arr[:POPULATION_SIZE // 2]
-        selected_individuals = [i[0] in selected_individuals]
-
-        
+        selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
+        selected_individuals = [i[0] for i in selected_individuals]
 
         # Crossover and mutation
-        for i in range(0, len(selected_individuals), 2):
-            parent1 = selected_individuals[i]
-            parent2 = selected_individuals[i + 1]
-            child1, child2 = crossover(parent1, parent2)
+        names = ["Generation_" + str(generation+1)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
+        for i in range(0, POPULATION_SIZE, 2):
+            parent1, parent2 = random.sample(selected_individuals,2)
+            child1, child2 = crossover(parent1, parent2, names[i], names[i+1])
             child1 = mutate(child1)
             child2 = mutate(child2)
             next_generation.extend([child1, child2])

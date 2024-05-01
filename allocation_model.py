@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms
+# from torchvision import datasets, transformss
 from torch.utils.data import DataLoader
 
 # Get cpu, gpu or mps device for training.

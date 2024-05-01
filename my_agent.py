@@ -86,7 +86,8 @@ class TrainingAgent(MyLSVMAgent):
 class MyAgent(MyLSVMAgent):
     def setup(self):
         self.model = PredictionNetwork()
-        if os.path.isfile(MODELS_PATH + self.name + ".pth"):
+        # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
+        if self.name != NAME:
             self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
 
 
@@ -186,7 +187,7 @@ def process_saved_game(filepath):
                 # won_items = (MyLSVMAgent.map_to_ndarray(my_agent_submission, winner_history[-1], np.dtype('U100')) == agent).reshape(1,18)
 
                 values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations)])
-                elos = np.array([(agent, elo(int))])
+                elos = np.array([(agent, int(elo.split()[0]))])
 
                 if datax is None:
                     datay = elos
@@ -201,7 +202,6 @@ def process_saved_game(filepath):
                 #     datax = values - prices
                 # else:
                 #     datax = np.append(datax,values - prices, axis=0)
-            print("datax:", datax, "datay:", datay)
         return datax, datay
         
 def process_saved_dir(dirpath): 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     # )
 
     arena = LSVMArena(
-        num_cycles_per_player = 10,
+        num_cycles_per_player = 3,
         timeout=1,
         local_save_path="saved_games",
         players=[
@@ -257,7 +257,7 @@ if __name__ == "__main__":
             JumpBidder("Jump Bidder"), 
             JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"), 
-            TrainingAgent("TrainingAgent") 
+            MyAgent("Generation_4_Bot_5")
         ]
     )
     
