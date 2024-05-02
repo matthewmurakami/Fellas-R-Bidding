@@ -199,14 +199,13 @@ class MyAgent(MyLSVMAgent):
         self.num_goods = 18  # As there are 18 goods A-R
         self.num_actions = 18  # One action per good
         self.num_hidden = 128
+        self.discount_factor = 0.95
 
         self.model = self.build_model()
         self.optimizer = keras.optimizers.Adam(learning_rate=0.01)
         self.huber_loss = keras.losses.Huber()
 
         self.critic_value_history = []
-
-
 
     def build_model(self):
         inputs = layers.Input(shape=(self.num_goods,))
@@ -222,7 +221,16 @@ class MyAgent(MyLSVMAgent):
         state = tf.reshape(state,(1,18))
 
         action_probs, critic_value = self.model(state)
+
+        #print("DEBUG ============> Critic history: ", critic_value)
+        # print("Action probabilities shape:", action_probs.shape)
+        # print("Critic value shape:", critic_value.shape)
+
         self.critic_value_history.append(critic_value[0, 0])
+        
+        #print("DEBUG ============> len of critic history:", len(self.critic_value_history))
+        #print("DEBUG ============> Critic history: ", self.critic_value_history)
+
         return action_probs, critic_value
     
     def national_bidder_strategy(self):
@@ -231,9 +239,10 @@ class MyAgent(MyLSVMAgent):
     def regional_bidder_strategy(self):
         state = self.get_min_bids_as_array()
         action_probs, critic_value = self.act(state)
-        
+    
         # Convert actions to valid bids
         bids = self.convert_to_bids(action_probs.numpy().flatten())
+        # print("DEBUG ============> bids:", bids)
         return bids
 
     def convert_to_bids(self, action_values):        
@@ -244,29 +253,61 @@ class MyAgent(MyLSVMAgent):
         return bids
     
     def update(self):
-        if self.get_current_round() != 0: 
+        print("DEBUG ============> Round: ", self.get_current_round())
+
+        if self.get_current_round() != 1: 
             discount_rewards = self.discount(self.get_util_history())
             actor_history = self.get_bid_history()
-            critic_histort = self.critic_value_history
+            critic_history = self.critic_value_history
 
             with tf.GradientTape() as tape:
                 actor_losses = []
                 critic_losses = []
-                for actor, critic, reward in zip(actor_history, critic_histort, discount_rewards):
-                    diff = reward - critic
-                    actor_losses.append(-actor * diff)  # actor loss
 
-                    # The critic must be updated so that it predicts a better estimate of
-                    # the future rewards.
-                    critic_losses.append(
-                        self.huber_loss(ops.expand_dims(critic, 0), ops.expand_dims(reward, 0))
-                    )
+                # print("actor history length:", len(actor_history))
+                # print("critic history length:", len(critic_history))
+                # print("discount rewards  length:", len(discount_rewards))
+
+                # for actor, critic, reward in zip(actor_history, critic_histort, discount_rewards):
+                for i in range (len(actor_history)):
+                    actor = actor_history[i]
+                    critic = critic_history[i]
+                    reward = discount_rewards[i]
+                    
+                    actor = tf.cast(tf.reshape(actor, [-1]), tf.float32)
+                    critic = tf.cast(critic, tf.float32)
+                    reward = tf.cast(reward, tf.float32)
+
+                    diff = reward - critic
+
+                    # Trying to make (6x3) * (2) compatitable
+                    #actor = tf.reshape(actor, [-1]) # flatten
+                    # print(critic_history)
+                    # print(critic)
+                    # print(diff[i])
+
+                    # print("Actor shape:", actor.shape)
+                    # print("Diff shape:", diff.shape)
+                    # print("Reward shape:", reward.shape)
+
+                    # print("DEBUG ============> -actor:", -actor)
+                    # print("DEBUG ============>  diff: ", diff[i])
+
+                    actor_losses.append(-actor * diff[i])  # actor loss
+
+                    # The critic must be updated so that it predicts a better estimate of the future rewards.
+                    critic_losses.append(self.huber_loss(ops.expand_dims(critic, 0), ops.expand_dims(reward, 0)))
+
                 # Backpropagation
                 loss_value = sum(actor_losses) + sum(critic_losses)
                 grads = tape.gradient(loss_value, self.model.trainable_variables)
                 self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
                 self.critic_value_history.clear()
+
+
+
+
 
     def discount(self, rewards):
         if len(rewards) == 1:
