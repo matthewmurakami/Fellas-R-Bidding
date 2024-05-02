@@ -11,6 +11,14 @@ import json
 import numpy as np
 from torch import load, from_numpy
 
+os.environ["KERAS_BACKEND"] = "tensorflow"
+import gym
+import numpy as np
+import keras
+from keras import ops
+from keras import layers
+import tensorflow as tf
+
 MODELS_PATH = "models/"
 NAME = 'Fellas-R-Bidding'
 
@@ -81,48 +89,193 @@ class TrainingAgent(MyLSVMAgent):
     def update(self):
         pass 
 
+# class MyAgent(MyLSVMAgent):
+#     def setup(self):
+#         self.model = PredictionNetwork()
+#         # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
+#         if self.name != NAME:
+#             self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
 
 
-class MyAgent(MyLSVMAgent):
-    def setup(self):
-        self.model = PredictionNetwork()
-        # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
-        if self.name != NAME:
-            self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
+#     def national_bidder_strategy(self): 
+#         return self.regional_bidder_strategy()
 
 
-    def national_bidder_strategy(self): 
-        return self.regional_bidder_strategy()
+#     def regional_bidder_strategy(self):
 
+#         min_bids = self.get_min_bids()
+#         valuations = self.get_valuations() 
+#         goods = self.get_goods()
 
-    def regional_bidder_strategy(self):
+#         bids = {} 
+#         x = from_numpy(self.map_to_ndarray(valuations).astype(np.float32))
+#         x = x.unsqueeze(0)
 
-        min_bids = self.get_min_bids()
-        valuations = self.get_valuations() 
-        goods = self.get_goods()
-
-        bids = {} 
-        x = from_numpy(self.map_to_ndarray(valuations).astype(np.float32))
-        x = x.unsqueeze(0)
-
-        x = self.model(x)
+#         x = self.model(x)
 
         
 
-        for good in goods:
-            good_val = valuations[good]
-            good_min_bid = min_bids[good]
+#         for good in goods:
+#             good_val = valuations[good]
+#             good_min_bid = min_bids[good]
 
-            index = self.get_goods_to_index()[good]
-            index = index[0]*6 + index[1]
+#             index = self.get_goods_to_index()[good]
+#             index = index[0]*6 + index[1]
 
-            if good_min_bid <= good_val + x[index]:
-                bids[good] = good_min_bid
-            else:
-                bids[good] = None
+#             if good_min_bid <= good_val + x[index]:
+#                 bids[good] = good_min_bid
+#             else:
+#                 bids[good] = None
 
+#         return bids
+
+
+#     def get_bids(self):
+#         if self.is_national_bidder(): 
+#             return self.national_bidder_strategy()
+#         else: 
+#             return self.regional_bidder_strategy()
+    
+#     def update(self):
+#         pass 
+    
+# class MyAgent2(MyLSVMAgent):
+#     def setup(self):
+#         self.model = PredictionNetwork()
+#         # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
+#         if self.name != NAME:
+#             self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
+
+
+#     def national_bidder_strategy(self): 
+#         return self.regional_bidder_strategy()
+
+
+#     def regional_bidder_strategy(self):
+
+#         min_bids = self.get_min_bids()
+#         valuations = self.get_valuations() 
+#         goods = self.get_goods()
+
+#         bids = {} 
+#         values = from_numpy(self.map_to_ndarray(valuations).astype(np.float32))
+#         prices = from_numpy(self.map_to_ndarray(min_bids).astype(np.float32))
+#         x = values-prices
+#         x = x.unsqueeze(0)
+
+#         x = self.model(x)
+
+        
+
+#         for good in goods:
+#             good_val = valuations[good]
+#             good_min_bid = min_bids[good]
+
+#             index = self.get_goods_to_index()[good]
+#             index = index[0]*6 + index[1]
+
+#             if good_min_bid <= good_val + x[index]:
+#                 bids[good] = good_min_bid
+#             else:
+#                 bids[good] = None
+
+#         return bids
+
+
+#     def get_bids(self):
+#         if self.is_national_bidder(): 
+#             return self.national_bidder_strategy()
+#         else: 
+#             return self.regional_bidder_strategy()
+    
+#     def update(self):
+#         pass 
+        
+
+class MyAgent(MyLSVMAgent):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+        self.num_goods = 18  # As there are 18 goods A-R
+        self.num_actions = 18  # One action per good
+        self.num_hidden = 128
+
+        self.model = self.build_model()
+        self.optimizer = keras.optimizers.Adam(learning_rate=0.01)
+        self.huber_loss = keras.losses.Huber()
+
+        self.critic_value_history = []
+
+
+
+    def build_model(self):
+        inputs = layers.Input(shape=(self.num_goods,))
+        common = layers.Dense(self.num_hidden, activation="relu")(inputs)
+        action = layers.Dense(self.num_actions, activation="linear")(common)
+        critic = layers.Dense(1)(common)
+
+        model = keras.Model(inputs=inputs, outputs=[action, critic])
+        return model
+
+    def act(self, state):
+        state = tf.convert_to_tensor(state)
+        state = tf.reshape(state,(1,18))
+
+        action_probs, critic_value = self.model(state)
+        self.critic_value_history.append(critic_value[0, 0])
+        return action_probs, critic_value
+    
+    def national_bidder_strategy(self):
+        return self.regional_bidder_strategy()
+
+    def regional_bidder_strategy(self):
+        state = self.get_min_bids_as_array()
+        action_probs, critic_value = self.act(state)
+        
+        # Convert actions to valid bids
+        bids = self.convert_to_bids(action_probs.numpy().flatten())
         return bids
 
+    def convert_to_bids(self, action_values):        
+        min_bids = self.get_min_bids()
+        bids = {}
+        for i, good in enumerate(self.get_goods()):
+            bids[good] = max(min_bids[good], action_values[i])
+        return bids
+    
+    def update(self):
+        if self.get_current_round() != 0: 
+            discount_rewards = self.discount(self.get_util_history())
+            actor_history = self.get_bid_history()
+            critic_histort = self.critic_value_history
+
+            with tf.GradientTape() as tape:
+                actor_losses = []
+                critic_losses = []
+                for actor, critic, reward in zip(actor_history, critic_histort, discount_rewards):
+                    diff = reward - critic
+                    actor_losses.append(-actor * diff)  # actor loss
+
+                    # The critic must be updated so that it predicts a better estimate of
+                    # the future rewards.
+                    critic_losses.append(
+                        self.huber_loss(ops.expand_dims(critic, 0), ops.expand_dims(reward, 0))
+                    )
+                # Backpropagation
+                loss_value = sum(actor_losses) + sum(critic_losses)
+                grads = tape.gradient(loss_value, self.model.trainable_variables)
+                self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+
+                self.critic_value_history.clear()
+
+    def discount(self, rewards):
+        if len(rewards) == 1:
+            return rewards
+
+        indices = np.arange(len(rewards))
+        total = rewards[0]
+        total = total + np.sum(rewards[1:] * np.power(self.discount_factor, indices[1:]))
+        return np.concatenate((np.array([total]), self.discount(rewards[1:])))
 
     def get_bids(self):
         if self.is_national_bidder(): 
@@ -130,10 +283,8 @@ class MyAgent(MyLSVMAgent):
         else: 
             return self.regional_bidder_strategy()
     
-    def update(self):
-        pass 
-        
-    
+    def setup(self):
+        pass
 
 
 
@@ -254,10 +405,10 @@ if __name__ == "__main__":
         players=[
             MinBidAgent("Min Bidder"),
             MinBidAgent("Min Bidder2"),
-            JumpBidder("Jump Bidder"), 
+            TrainingAgent("Training Agent"), 
             JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"), 
-            MyAgent("Generation_4_Bot_5")
+            MyAgent("RL Agent")
         ]
     )
     

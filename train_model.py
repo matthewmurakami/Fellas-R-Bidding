@@ -14,10 +14,11 @@ from agt_server.local_games.lsvm_arena import LSVMArena
 from agt_server.agents.test_agents.lsvm.min_bidder.my_agent import MinBidAgent
 from agt_server.agents.test_agents.lsvm.jump_bidder.jump_bidder import JumpBidder
 from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import TruthfulBidder
-from my_agent import MyAgent
+from my_agent import MyAgent, TrainingAgent
 import time
 from torchsummary import summary
 import random
+import copy
 
 # Get cpu, gpu or mps device for training.
 device = (
@@ -30,78 +31,12 @@ device = (
 print(f"Using {device} device")
 
 
-"""def train(dataloader, model):
-    size = len(dataloader.dataset)
-    model.train()
-    for i, batch in enumerate(dataloader):
-        X, y = batch
-        X, y = X.to(device), y.to(device)
-
-        # Compute prediction error
-        pred = model(X)
-        loss = model.loss_fn(pred, y)
-
-        # Backpropagation
-        model.optimizer.zero_grad()
-        loss.backward()
-        model.optimizer.step()
-
-        if i % 100 == 0:
-            loss, current = loss.item(), (i + 1) * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-
-
-def test(dataloader, model):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    model.eval()
-    test_loss, correct = 0, 0
-    with torch.no_grad():
-        for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
-            pred = model(X)
-            test_loss += model.loss_fn(pred, y).item()
-            # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-            correct += (y - pred).absolute().sum()  
-    test_loss /= num_batches
-    # correct /= size
-    correct /= size*18
-    # print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
-    print(f"Test Error: \n Prediction Error: {(correct):>0.001f}, Avg loss: {test_loss:>8f} \n")
-
-
-if __name__ == "__main__":
-    datax, datay = process_saved_dir("saved_games")
-
-    tensor_x = torch.Tensor(datax) # transform to torch tensor
-    tensor_y = torch.Tensor(datay)
-
-    # train-test split for evaluation of the model
-    X_train, X_test, y_train, y_test = train_test_split(tensor_x, tensor_y, train_size=0.7, shuffle=True)
-    
-    # set up DataLoader for training set
-    loader = DataLoader(list(zip(X_train, y_train)), shuffle=True, batch_size=32)
-
-    model = PredictionNetwork()
-    model = model.to(device)
-
-
-    epochs = 10
-    for t in range(epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
-        train(loader, model)
-        test(loader, model)
-    
-    print("Done!")
-
-    torch.save(model.state_dict(), "model.pth")
-    print("Saved PyTorch Model State to model.pth")"""
-
-
 # Genetic algorithm parameters
-POPULATION_SIZE = 6
+POPULATION_SIZE = 10
 MUTATION_RATE = 0.1
-NUM_GENERATIONS = 5
+NUM_GENERATIONS = 50
+MODELS_PATH = "models/"
+
 
 def compute_fitness(model, train_loader, test_loader):
 
@@ -153,7 +88,6 @@ def mutate(model):
             param.data += torch.randn_like(param.data) * 0.1  # Adding Gaussian noise with std=0.1
     return model
 
-
 def quickSort(array):
     if len(array)> 1:
         pivot=array.pop()
@@ -169,12 +103,15 @@ def quickSort(array):
     else:
         return array
 
-MODELS_PATH = "models/"
+
+
+
 
 if __name__ == "__main__":
 
     population = None
     names = None
+    
     for generation in range(NUM_GENERATIONS):
         files = glob.glob('saved_games/*')
         for f in files:
@@ -194,23 +131,23 @@ if __name__ == "__main__":
         
         population_players = [MyAgent(name) for name in names]
 
-    
         default_players=[
             MinBidAgent("Min Bidder"),
             JumpBidder("Jump Bidder"), 
-            TruthfulBidder("Truthful Bidder"),]
+            TruthfulBidder("Truthful Bidder"),
+            TrainingAgent("Training Agent"),]
 
+        bidders = copy.deepcopy(population_players)
+        bidders.extend(default_players)
 
         arena = LSVMArena(
             num_cycles_per_player = 1,
             timeout=1,
             local_save_path="saved_games",
-            players=population_players,
-        )
+            players=bidders,
+        )        
         
-        # sys.stdout = open(os.devnull, 'w')
         arena.run()
-        # sys.stdout = sys.__stdout__
 
         datax, datay = process_saved_dir("saved_games")
     
@@ -230,7 +167,6 @@ if __name__ == "__main__":
         # Compute fitness for each individual
         fitness_arr = []
         for individual in population:
-            print(individual.name)
             name = individual.name
             # X_train, X_test, y_train, y_test = train_test_split(player_datax[name], player_datay[name], train_size=0.7, shuffle=True)
         
