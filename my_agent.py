@@ -87,8 +87,8 @@ class MyAgent(MyLSVMAgent):
     def setup(self):
         self.model = PredictionNetwork()
         # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
-        if self.name != NAME:
-            self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
+        # if self.name != NAME:
+        self.model.load_state_dict(load(MODELS_PATH + 'Generation_37_Bot_5' + ".pth"))
 
 
     def national_bidder_strategy(self): 
@@ -257,7 +257,7 @@ if __name__ == "__main__":
             JumpBidder("Jump Bidder"), 
             JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"), 
-            MyAgent("Generation_4_Bot_5")
+            my_agent_submission
         ]
     )
     
