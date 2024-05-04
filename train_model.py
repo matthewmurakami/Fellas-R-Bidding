@@ -19,6 +19,7 @@ import time
 from torchsummary import summary
 import random
 import copy
+import re
 
 # Get cpu, gpu or mps device for training.
 device = (
@@ -34,11 +35,72 @@ print(f"Using {device} device")
 # Genetic algorithm parameters
 POPULATION_SIZE = 10
 MUTATION_RATE = 0.1
-NUM_GENERATIONS = 50
+NUM_GENERATIONS = 5
 MODELS_PATH = "models/"
+DISCOUNT_FACTOR = 0.95
 
 
-def compute_fitness(model, train_loader, test_loader):
+def train(model, input, reward):
+    discount_rewards = discount(np.full((input.shape[0]),reward))
+    print(discount_rewards)
+    action_probs, critic_value = individual.forward(input)
+
+    diff = discount_rewards - critic_value
+    actor_loss = -actor_history * diff
+    critic_loss = self.model.loss_fn(critic_history, discount_rewards)
+    loss_value = sum(actor_loss) + sum(critic_loss)
+
+    loss_value.backward()
+    self.model.optimizer.step()
+    
+    self.actor_history = []
+    self.critic_value_history = []
+
+    # with torch.GradientTape() as tape:
+    #     actor_losses = []
+    #     critic_losses = []
+
+    #     # print("actor history length:", len(actor_history))
+    #     # print("critic history length:", len(critic_history))
+    #     # print("discount rewards  length:", len(discount_rewards))
+
+    #     # for actor, critic, reward in zip(actor_history, critic_histort, discount_rewards):
+    #     for i in range (len(actor_history)):
+    #         actor = actor_history[i]
+    #         critic = critic_history[i]
+    #         reward = discount_rewards[i]
+            
+    #         actor = torch.cast(torch.reshape(actor, [-1]), torch.float32)
+    #         critic = torch.cast(critic, torch.float32)
+    #         reward = torch.cast(reward, 
+    #                             torch.float32)
+
+    #         diff = reward - critic
+
+    #         # Trying to make (6x3) * (2) compatitable
+    #         #actor = tf.reshape(actor, [-1]) # flatten
+    #         # print(critic_history)
+    #         # print(critic)
+    #         # print(diff[i])
+
+    #         # print("Actor shape:", actor.shape)
+    #         # print("Diff shape:", diff.shape)
+    #         # print("Reward shape:", reward.shape)
+
+    #         # print("DEBUG ============> -actor:", -actor)
+    #         # print("DEBUG ============>  diff: ", diff[i])
+
+    #         actor_losses.append(-actor * diff[i])  # actor loss
+
+    #         # The critic must be updated so that it predicts a better estimate of the future rewards.
+    #         critic_losses.append(self.huber_loss(torch.expand_dims(critic, 0), torch.expand_dims(reward, 0)))
+
+    #     # Backpropagation
+    #     loss_value = sum(actor_losses) + sum(critic_losses)
+    #     grads = tape.gradient(loss_value, self.model.trainable_variables)
+    #     self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+
+    #     self.critic_value_history.clear()
 
     # model.train()
     # for epoch in range(5):
@@ -62,6 +124,15 @@ def compute_fitness(model, train_loader, test_loader):
     # accuracy = correct / total
     # return accuracy
     pass
+
+def discount(rewards):
+    if len(rewards) == 1:
+        return rewards
+
+    indices = np.arange(len(rewards))
+    total = rewards[0]
+    total = total + np.sum(rewards[1:] * np.power(DISCOUNT_FACTOR, indices[1:]))
+    return np.concatenate((np.array([total]), DISCOUNT_FACTOR(rewards[1:])))
 
 # Initialize genetic algorithm parameters
 def initialize_population(names):
@@ -102,8 +173,33 @@ def quickSort(array):
         return (quickSort(smlr_lst) + equal_lst + quickSort(grtr_lst))
     else:
         return array
+    
+def proccess_output(file_path):
+    output = {}
+    elo_section = False
+    with open(file_path) as file:
+        for line in file:
+            line = line.strip()
+            if not elo_section:
+                # auction_num = re.match("Auction (\d+):.*", line)
+                # if auction_num:
+                #    continue
+                utility = re.match("^([^\s]+) got a final utility of (-?\d*[.,]?\d*)$", line)
+                if utility:
+                    if utility.group(1) not in output:
+                        output[utility.group(1)] = [float(utility.group(2))]
+                    else:
+                        output[utility.group(1)].append(float(utility.group(2)))
+                    continue
+                if re.match("Agent Name  Final Score   ELO", line):
+                    elo_section = True
+                    continue
+            # else:
+            #     output = re.match("^\d+[\s]+([^\s]+)[\s]+(\d*[.,]?\d*)[\s]+(\d+)$", line)
 
-
+            #     output[elo.group(1)] = int(elo.group(3))
+    return output
+            
 
 
 
@@ -132,10 +228,10 @@ if __name__ == "__main__":
         population_players = [MyAgent(name) for name in names]
 
         default_players=[
-            MinBidAgent("Min Bidder"),
-            JumpBidder("Jump Bidder"), 
-            TruthfulBidder("Truthful Bidder"),
-            TrainingAgent("Training Agent"),]
+            MinBidAgent("Min_Bidder"),
+            JumpBidder("Jump_Bidder"), 
+            TruthfulBidder("Truthful_Bidder"),
+            TrainingAgent("Training_Agent"),]
 
         bidders = copy.deepcopy(population_players)
         bidders.extend(default_players)
@@ -145,23 +241,15 @@ if __name__ == "__main__":
             timeout=1,
             local_save_path="saved_games",
             players=bidders,
-        )        
+        )   
+
+        with open('output.txt', 'w') as sys.stdout:
+            arena.run()
+        sys.stdout = sys.__stdout__
+
+        data = process_saved_dir("saved_games")
+        score = proccess_output('output.txt')
         
-        arena.run()
-
-        datax, datay = process_saved_dir("saved_games")
-    
-
-        player_datax = {}
-        player_datay = {}
-        for i in range(datax.shape[0]):
-            name = datay[i][0]
-            if name not in player_datax:
-                player_datax[name] = datax[i].astype(np.float32)
-                player_datay[name] = datay[i][1].astype(np.float32)
-            else:
-                player_datax[name] = np.append(player_datax[name],(datax[i])).astype(np.float32)
-                player_datay[name] = np.append(player_datay[name],(datay[i][1])).astype(np.float32)
             
 
         # Compute fitness for each individual
@@ -174,19 +262,22 @@ if __name__ == "__main__":
             # test_loader = DataLoader(list(zip(X_test, y_test)), shuffle=True, batch_size=32)
 
             # fitness = compute_fitness(individual, train_loader, test_loader)
+            print(name)
+            print(len(data[name]))
+            print(len(score[name]))
+            continue
+            fitness = score[name]
+            # train(individual, data[name], fitness)
 
-            elo = player_datay[name]
+            
 
-            # for i in range(len(elo)):
-            #     elo[i] = (1/(elo.shape[0] - i)) * elo[i]
-            # fitness = np.sum(elo)/elo.shape[0]
-            fitness = np.average(elo)
 
             if fitness > best_accuracy:
                 best_accuracy = fitness
                 best_individual = individual
             
             fitness_arr.append((individual, fitness))
+        exit()
         
         fitness_arr = quickSort(fitness_arr)
 
