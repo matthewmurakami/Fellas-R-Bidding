@@ -1,8 +1,9 @@
 import re
 import os
+import glob
+import numpy as np
 
-
-def proccess_their_output(file_path):
+def process_their_output(file_path):
     output = {}
     elo_section = False
     with open(file_path) as file:
@@ -24,16 +25,110 @@ def proccess_their_output(file_path):
            
     return output
 
+def process_our_output():
 
-def proccess_our_output():
-    for filename in os.listdir("outputs/"):
-        with open(f'outputs/{filename}', "r") as f:
-            count = 0
-            for line in f:
-                line = line.strip()
-                if line == "New Auction":
-                    count+=1
-            print("items: ", count)
+    utility_history = {}
+
+    for filename in os.listdir("outputs/"):    
+        first_iter = True
+        auction_list = np.array([])
+        round_list = []
+        utility_history[filename] = []
+
+        file = open(f'outputs/{filename}')
+        while(True):
+            line1 = file.readline().strip()
+
+            if line1 == "":
+                round_list = np.asarray(round_list)
+                auction_list = round_list
+                utility_history[filename].append(auction_list)
+                break
+
+            line2 = file.readline().strip()
+            line3 = file.readline().strip()
+
+            if line1 == "New Auction":
+                if first_iter:
+                    first_iter = False
+                    auction_list = np.array([])
+                    continue
+
+                round_list = np.asarray(round_list)
             
-            f.close()
-                
+                if auction_list.size == 0:
+                    auction_list = round_list
+                else:
+                    auction_list = np.concatenate((auction_list,round_list),axis=0)
+
+                utility_history[filename].append(auction_list)
+                auction_list = np.array([])
+                round_list = []
+                continue
+            else:
+                arr1 = line1.split(" ")
+                arr2 = line2.split(" ")
+                arr3 = line3.split(" ")
+                np_arr = np.asarray([arr1,
+                                     arr2,
+                                     arr3])
+                round_list.append(np_arr)
+                    
+        file.close()
+
+    return utility_history 
+
+# def process_our_output():
+#     utility_history = {}
+#     for filename in os.listdir("outputs/"):
+#         first_iter = True
+        
+#         auction_list = np.array([])
+
+#         round_list = []
+#         utility_history[filename] = []
+
+
+#         file = open(f'outputs/{filename}')
+#         while(True):
+#             line1 = file.readline().strip()
+
+#             if line1 == "":
+#                 break
+
+#             line2 = file.readline().strip()
+#             line3 = file.readline().strip()
+
+#             if line1 == "New Auction":
+#                 if first_iter:
+#                     first_iter = False
+#                     auction_list = np.array([])
+#                     continue
+
+#                 round_list = np.asarray(round_list)
+            
+#                 if auction_list.size == 0:
+#                     print("TRUE")
+#                     auction_list = round_list
+#                 else:
+#                     print("auction_list:",auction_list.shape)
+#                     auction_list = np.concatenate((auction_list,round_list),axis=0)
+
+#                 auction_list = np.array([])
+#                 round_list = []
+#                 continue
+#             else:
+#                 arr1 = line1.split(" ")
+#                 arr2 = line2.split(" ")
+#                 arr3 = line3.split(" ")
+#                 np_arr = np.asarray([arr1,
+#                                      arr2,
+#                                      arr3])
+#                 round_list.append(np_arr)
+
+#         print("EOF auction_list:", auction_list.shape)
+    
+#         utility_history[filename].append(auction_list)
+#         file.close()
+
+#     return utility_history

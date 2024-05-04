@@ -17,7 +17,7 @@ from my_agent import MyAgent, TrainingAgent
 import time
 import random
 import copy
-from data_load import proccess_their_output, proccess_our_output
+from data_load import process_their_output, process_our_output
 
 # Get cpu, gpu or mps device for training.
 device = (
@@ -183,6 +183,11 @@ if __name__ == "__main__":
     names = None
     
     for generation in range(NUM_GENERATIONS):
+
+        files = glob.glob('outputs/*')
+        for f in files:
+            os.remove(f)
+
         files = glob.glob('saved_games/*')
         for f in files:
             os.remove(f)
@@ -222,10 +227,15 @@ if __name__ == "__main__":
         sys.stdout = sys.__stdout__
 
         data = process_saved_dir("saved_games")
-        score = proccess_their_output('output.txt')
+        score = process_their_output('output.txt')
 
 
-        new_data = proccess_our_output()
+        new_data = process_our_output()
+        print(len(new_data))
+        for key in new_data:
+            print("key:",key)
+            for item in new_data[key]:
+                print(item.shape)
         
             
 
