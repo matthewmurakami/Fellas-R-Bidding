@@ -103,7 +103,6 @@ class MyAgent(MyLSVMAgent):
             utility = self.get_valuation_as_array() - self.get_current_prices()
             state = torch.unsqueeze(torch.Tensor(utility),0)
         else:
-            print(self.get_current_round())
             utility = self.get_valuation_as_array()
             state = torch.unsqueeze(torch.Tensor(utility),0)
 

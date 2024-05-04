@@ -10,19 +10,23 @@ def process_their_output(file_path):
         for line in file:
             line = line.strip()
             if not elo_section:
-
+                # auction_num = re.match("Auction (\d+):.*", line)
+                # if auction_num:
+                #    continue
                 utility = re.match("^([^\s]+) got a final utility of (-?\d*[.,]?\d*)$", line)
-
                 if utility:
                     if utility.group(1) not in output:
-                        output[utility.group(1)] = [float(utility.group(2))]
+                        output[utility.group(1)] = [0,[float(utility.group(2))]]
                     else:
-                        output[utility.group(1)].append(float(utility.group(2)))
+                        output[utility.group(1)][1].append(float(utility.group(2)))
                     continue
                 if re.match("Agent Name  Final Score   ELO", line):
                     elo_section = True
                     continue
-           
+            else:
+                elo = re.match("^\d+[\s]+([^\s]+)[\s]+(\d*[.,]?\d*)[\s]+(\d+)$", line)
+
+                output[elo.group(1)][0] = int(elo.group(3))
     return output
 
 def process_our_output():
