@@ -5,3 +5,5 @@ __pycache__
 models
 local_elo_ranking.json
 output.txt
+outputs
+__pycache__/my_agent.cpython-311.pyc

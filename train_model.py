@@ -38,21 +38,20 @@ MODELS_PATH = "models/"
 DISCOUNT_FACTOR = 0.95
 
 
-def train(model, input, reward):
-    discount_rewards = discount(np.full((input.shape[0]),reward))
-    print(discount_rewards)
-    action_probs, critic_value = individual.forward(input)
+def train(model, input, rewards):
 
+    discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
+    input = np.concatenate(input)
+    
+    model.optimizer.zero_grad()
+    action_probs, critic_value = model.forward(input)
     diff = discount_rewards - critic_value
-    actor_loss = -actor_history * diff
-    critic_loss = self.model.loss_fn(critic_history, discount_rewards)
+    actor_loss = -action_probs * diff
+    critic_loss = model.loss_fn(critic_value, discount_rewards)
     loss_value = sum(actor_loss) + sum(critic_loss)
 
     loss_value.backward()
-    self.model.optimizer.step()
-    
-    self.actor_history = []
-    self.critic_value_history = []
+    model.optimizer.step()
 
     # with torch.GradientTape() as tape:
     #     actor_losses = []
@@ -221,7 +220,7 @@ if __name__ == "__main__":
             arena.run()
         sys.stdout = sys.__stdout__
 
-        data = process_saved_dir("saved_games")
+        # data = process_saved_dir("saved_games")
         score = proccess_their_output('output.txt')
 
 
@@ -239,12 +238,11 @@ if __name__ == "__main__":
             # test_loader = DataLoader(list(zip(X_test, y_test)), shuffle=True, batch_size=32)
 
             # fitness = compute_fitness(individual, train_loader, test_loader)
-            print(name)
-            print(len(data[name]))
-            print(len(score[name]))
-            continue
-            fitness = score[name]
-            # train(individual, data[name], fitness)
+            elo, utilities = score[name]
+            # train(individual, data[name], utilities)
+
+            
+            fitness = elo
 
             
 
