@@ -2,7 +2,6 @@ import glob
 import torch, sys, os
 import torch.nn as nn
 import torch.optim as optim
-# from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from my_agent import process_saved_dir
 import numpy as np
@@ -16,10 +15,9 @@ from agt_server.agents.test_agents.lsvm.jump_bidder.jump_bidder import JumpBidde
 from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import TruthfulBidder
 from my_agent import MyAgent, TrainingAgent
 import time
-from torchsummary import summary
 import random
 import copy
-import re
+from data_load import proccess_their_output, proccess_our_output
 
 # Get cpu, gpu or mps device for training.
 device = (
@@ -174,31 +172,7 @@ def quickSort(array):
     else:
         return array
     
-def proccess_output(file_path):
-    output = {}
-    elo_section = False
-    with open(file_path) as file:
-        for line in file:
-            line = line.strip()
-            if not elo_section:
-                # auction_num = re.match("Auction (\d+):.*", line)
-                # if auction_num:
-                #    continue
-                utility = re.match("^([^\s]+) got a final utility of (-?\d*[.,]?\d*)$", line)
-                if utility:
-                    if utility.group(1) not in output:
-                        output[utility.group(1)] = [float(utility.group(2))]
-                    else:
-                        output[utility.group(1)].append(float(utility.group(2)))
-                    continue
-                if re.match("Agent Name  Final Score   ELO", line):
-                    elo_section = True
-                    continue
-            # else:
-            #     output = re.match("^\d+[\s]+([^\s]+)[\s]+(\d*[.,]?\d*)[\s]+(\d+)$", line)
 
-            #     output[elo.group(1)] = int(elo.group(3))
-    return output
             
 
 
@@ -248,7 +222,10 @@ if __name__ == "__main__":
         sys.stdout = sys.__stdout__
 
         data = process_saved_dir("saved_games")
-        score = proccess_output('output.txt')
+        score = proccess_their_output('output.txt')
+
+
+        new_data = proccess_our_output()
         
             
 

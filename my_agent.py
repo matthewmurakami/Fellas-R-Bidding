@@ -99,15 +99,28 @@ class MyAgent(MyLSVMAgent):
         return self.regional_bidder_strategy()
 
     def regional_bidder_strategy(self):
-        prices = torch.Tensor(self.get_current_prices())
-        valuations = torch.Tensor(self.get_valuation_as_array())
-        state = torch.unsqueeze(valuations - prices,0)
+        if self.get_current_prices() is not None:
+            utility = self.get_valuation_as_array() - self.get_current_prices()
+            state = torch.unsqueeze(torch.Tensor(utility),0)
+        else:
+            print(self.get_current_round())
+            utility = self.get_valuation_as_array()
+            state = torch.unsqueeze(torch.Tensor(utility),0)
+
+        
+
+        with open(f"outputs/{self.name}.txt", "a") as f:
+            if self.get_current_round() == 0:
+                f.write("New Auction\n")
+            else:
+                np.savetxt(f, utility)
+        
+
+
+
 
         action_probs, critic_value = self.model.forward(state)
-
-        # Convert actions to valid bids
         bids = self.convert_to_bids(action_probs)
-        # print("DEBUG ============> bids:", bids)
         return bids
 
     def convert_to_bids(self, action_values):        
