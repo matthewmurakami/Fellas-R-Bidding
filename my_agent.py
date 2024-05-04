@@ -111,6 +111,8 @@ class MyAgent(MyLSVMAgent):
         with open(f"outputs/{self.name}.txt", "a") as f:
             if self.get_current_round() == 0:
                 f.write("New Auction\n")
+                f.write("\n")
+                f.write("\n")
             else:
                 np.savetxt(f, utility)
         
