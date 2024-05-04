@@ -99,13 +99,9 @@ class MyAgent(MyLSVMAgent):
         return self.regional_bidder_strategy()
 
     def regional_bidder_strategy(self):
-        if self.get_current_prices() is not None:
-            prices = torch.Tensor(self.get_current_prices())
-            valuations = torch.Tensor(self.get_valuation_as_array())
-            state = torch.unsqueeze(valuations - prices,0)
-        else:
-            valuations = torch.Tensor(self.get_valuation_as_array())
-            state = torch.unsqueeze(valuations,0)
+        prices = torch.Tensor(self.get_current_prices())
+        valuations = torch.Tensor(self.get_valuation_as_array())
+        state = torch.unsqueeze(valuations - prices,0)
 
         action_probs, critic_value = self.model.forward(state)
 
