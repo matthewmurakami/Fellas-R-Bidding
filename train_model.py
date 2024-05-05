@@ -41,17 +41,22 @@ DISCOUNT_FACTOR = 0.95
 def train(model, input, rewards):
 
     discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
-    input = np.concatenate(input)
+    print(discount_rewards.shape)
     
-    model.optimizer.zero_grad()
-    action_probs, critic_value = model.forward(input)
-    diff = discount_rewards - critic_value
-    actor_loss = -action_probs * diff
-    critic_loss = model.loss_fn(critic_value, discount_rewards)
-    loss_value = sum(actor_loss) + sum(critic_loss)
+    input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
+    input.to(device)
+    train_loader = DataLoader(list(zip(input, discount_rewards)), shuffle=True, batch_size=32)
+    for epoch in range(5):
+        for data, target in train_loader:
+            model.optimizer.zero_grad()
+            action_probs, critic_value = model(data)
+            diff = discount_rewards - critic_value
+            actor_loss = -action_probs * diff
+            critic_loss = model.loss_fn(critic_value, target)
+            loss_value = sum(actor_loss) + sum(critic_loss)
 
-    loss_value.backward()
-    model.optimizer.step()
+            loss_value.backward()
+            model.optimizer.step()
 
     # with torch.GradientTape() as tape:
     #     actor_losses = []
@@ -129,7 +134,7 @@ def discount(rewards):
     indices = np.arange(len(rewards))
     total = rewards[0]
     total = total + np.sum(rewards[1:] * np.power(DISCOUNT_FACTOR, indices[1:]))
-    return np.concatenate((np.array([total]), DISCOUNT_FACTOR(rewards[1:])))
+    return np.concatenate((np.array([total]), discount(rewards[1:])))
 
 # Initialize genetic algorithm parameters
 def initialize_population(names):
@@ -226,15 +231,8 @@ if __name__ == "__main__":
         sys.stdout = sys.__stdout__
 
         # data = process_saved_dir("saved_games")
-        score = proccess_their_output('output.txt')
-
-
-        new_data = process_our_output()
-        print(len(new_data))
-        for key in new_data:
-            print("key:",key)
-            for item in new_data[key]:
-                print(item.shape)
+        score = process_their_output('output.txt')
+        data = process_our_output()
         
             
 
@@ -249,7 +247,7 @@ if __name__ == "__main__":
 
             # fitness = compute_fitness(individual, train_loader, test_loader)
             elo, utilities = score[name]
-            # train(individual, data[name], utilities)
+            train(individual, data[name], utilities)
 
             
             fitness = elo

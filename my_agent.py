@@ -99,8 +99,8 @@ class MyAgent(MyLSVMAgent):
         return self.regional_bidder_strategy()
 
     def regional_bidder_strategy(self):
-        if self.get_current_prices() is not None:
-            utility = self.get_valuation_as_array() - self.get_current_prices()
+        if self.get_min_bids_as_array() is not None:
+            utility = self.get_valuation_as_array() - self.get_min_bids_as_array()
             state = torch.unsqueeze(torch.Tensor(utility),0)
         else:
             utility = self.get_valuation_as_array()

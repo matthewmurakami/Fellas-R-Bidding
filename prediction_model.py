@@ -25,7 +25,6 @@ class PredictionNetwork(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
             self.conv2,
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
-            nn.Flatten(start_dim=0),
             nn.ReLU(),
             
         )

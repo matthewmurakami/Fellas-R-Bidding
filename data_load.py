@@ -33,20 +33,23 @@ def process_our_output():
 
     utility_history = {}
 
-    for filename in os.listdir("outputs/"):    
+    for filename in os.listdir("outputs/"): 
+           
         first_iter = True
         auction_list = np.array([])
         round_list = []
-        utility_history[filename] = []
+        name = filename.split(".")[0]
+        utility_history[name] = []
 
         file = open(f'outputs/{filename}')
         while(True):
             line1 = file.readline().strip()
+            
 
             if line1 == "":
                 round_list = np.asarray(round_list)
                 auction_list = round_list
-                utility_history[filename].append(auction_list)
+                utility_history[name].append(auction_list)
                 break
 
             line2 = file.readline().strip()
@@ -65,7 +68,7 @@ def process_our_output():
                 else:
                     auction_list = np.concatenate((auction_list,round_list),axis=0)
 
-                utility_history[filename].append(auction_list)
+                utility_history[name].append(auction_list)
                 auction_list = np.array([])
                 round_list = []
                 continue
@@ -75,7 +78,7 @@ def process_our_output():
                 arr3 = line3.split(" ")
                 np_arr = np.asarray([arr1,
                                      arr2,
-                                     arr3])
+                                     arr3], dtype=np.float32)
                 round_list.append(np_arr)
                     
         file.close()
