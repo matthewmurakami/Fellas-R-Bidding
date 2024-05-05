@@ -26,7 +26,7 @@ class PredictionNetwork(nn.Module):
             self.conv2,
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            
+            nn.Flatten(start_dim=1)
         )
         self.linear_actor = nn.Sequential(
             nn.Linear(1152, 18),  # Adjust this line based on actual output size
@@ -34,8 +34,8 @@ class PredictionNetwork(nn.Module):
         self.linear_critic = nn.Sequential(
             nn.Linear(1152, 1),  # Adjust this line based on actual output size
         )
-        self.loss_fn = nn.HuberLoss()
-        self.optimizer = torch.optim.Adam(self.parameters())
+        self.loss_fn = nn.HuberLoss(delta=1.0)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
 
     def forward(self, x):
         common = self.linear_common(x)

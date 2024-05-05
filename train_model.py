@@ -41,22 +41,22 @@ DISCOUNT_FACTOR = 0.95
 def train(model, input, rewards):
 
     discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
-    print(discount_rewards.shape)
+    discount_rewards = torch.Tensor(discount_rewards.reshape(discount_rewards.shape[0],1))
     
     input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
     input.to(device)
     train_loader = DataLoader(list(zip(input, discount_rewards)), shuffle=True, batch_size=32)
-    for epoch in range(5):
-        for data, target in train_loader:
-            model.optimizer.zero_grad()
-            action_probs, critic_value = model(data)
-            diff = discount_rewards - critic_value
-            actor_loss = -action_probs * diff
-            critic_loss = model.loss_fn(critic_value, target)
-            loss_value = sum(actor_loss) + sum(critic_loss)
+    for data, target in train_loader:
+        model.optimizer.zero_grad()
+        action_probs, critic_value = model(data)
+        diff = target - critic_value
+        actor_loss = -action_probs * diff
+        critic_loss = model.loss_fn(critic_value, target)
+        loss_value = torch.sum(actor_loss) + torch.sum(critic_loss)
 
-            loss_value.backward()
-            model.optimizer.step()
+
+        loss_value.backward()
+        model.optimizer.step()
 
     # with torch.GradientTape() as tape:
     #     actor_losses = []
@@ -260,7 +260,6 @@ if __name__ == "__main__":
                 best_individual = individual
             
             fitness_arr.append((individual, fitness))
-        exit()
         
         fitness_arr = quickSort(fitness_arr)
 

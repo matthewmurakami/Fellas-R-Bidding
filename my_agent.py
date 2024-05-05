@@ -101,13 +101,12 @@ class MyAgent(MyLSVMAgent):
     def regional_bidder_strategy(self):
         if self.get_min_bids_as_array() is not None:
             utility = self.get_valuation_as_array() - self.get_min_bids_as_array()
-            state = torch.unsqueeze(torch.Tensor(utility),0)
         else:
             utility = self.get_valuation_as_array()
-            state = torch.unsqueeze(torch.Tensor(utility),0)
+            
 
         
-
+        state = torch.unsqueeze(torch.unsqueeze(torch.Tensor(utility),0),0)
         with open(f"outputs/{self.name}.txt", "a") as f:
             if self.get_current_round() == 0:
                 f.write("New Auction\n")
@@ -119,8 +118,8 @@ class MyAgent(MyLSVMAgent):
 
 
 
-
         action_probs, critic_value = self.model.forward(state)
+        action_probs = torch.flatten(action_probs)
         bids = self.convert_to_bids(action_probs)
         return bids
 
