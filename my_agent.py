@@ -8,8 +8,11 @@ import time
 import os
 import gzip
 import json
+import torch
 import numpy as np
+from prediction_model import PredictionNetwork
 from torch import load, from_numpy
+
 
 MODELS_PATH = "models/"
 NAME = 'Fellas-R-Bidding'
@@ -81,59 +84,64 @@ class TrainingAgent(MyLSVMAgent):
     def update(self):
         pass 
 
-
-
 class MyAgent(MyLSVMAgent):
-    def setup(self):
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.model = PredictionNetwork()
         # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
-        if self.name != NAME:
-            self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
+        # if self.name != NAME:
+        #     self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
 
-
-    def national_bidder_strategy(self): 
+    def setup(self):
+        pass
+    
+    def national_bidder_strategy(self):
         return self.regional_bidder_strategy()
 
-
     def regional_bidder_strategy(self):
-
-        min_bids = self.get_min_bids()
-        valuations = self.get_valuations() 
-        goods = self.get_goods()
-
-        bids = {} 
-        x = from_numpy(self.map_to_ndarray(valuations).astype(np.float32))
-        x = x.unsqueeze(0)
-
-        x = self.model(x)
+        if self.get_min_bids_as_array() is not None:
+            utility = self.get_valuation_as_array() - self.get_min_bids_as_array()
+        else:
+            utility = self.get_valuation_as_array()
+            
 
         
-
-        for good in goods:
-            good_val = valuations[good]
-            good_min_bid = min_bids[good]
-
-            index = self.get_goods_to_index()[good]
-            index = index[0]*6 + index[1]
-
-            if good_min_bid <= good_val + x[index]:
-                bids[good] = good_min_bid
+        state = torch.unsqueeze(torch.unsqueeze(torch.Tensor(utility),0),0)
+        with open(f"outputs/{self.name}.txt", "a") as f:
+            if self.get_current_round() == 0:
+                f.write("New Auction\n")
+                f.write("\n")
+                f.write("\n")
             else:
-                bids[good] = None
+                np.savetxt(f, utility)
+        
 
+
+
+        action_probs, critic_value = self.model.forward(state)
+        action_probs = torch.flatten(action_probs)
+        bids = self.convert_to_bids(action_probs)
         return bids
 
+    def convert_to_bids(self, action_values):        
+        min_bids = self.get_min_bids()
+        bids = {}
+        for i, good in enumerate(self.get_goods()):
+            if action_values[i] >= min_bids[good]:
+                bids[good] = min_bids[good]
+            else:
+                bids[good] = 0
+        return bids
+    
+    def update(self):
+        pass 
+    
 
     def get_bids(self):
         if self.is_national_bidder(): 
             return self.national_bidder_strategy()
         else: 
             return self.regional_bidder_strategy()
-    
-    def update(self):
-        pass 
-        
-    
 
 
 
@@ -142,7 +150,7 @@ my_agent_submission = MyAgent(NAME)
 ####################################################
 
 
-def process_saved_game(filepath): 
+def process_saved_game(filepath, data): 
     """ 
     Here is some example code to load in a saved game in the format of a json.gz and to work with it
     """
@@ -151,8 +159,6 @@ def process_saved_game(filepath):
     # NOTE: Data is a dictionary mapping 
     with gzip.open(filepath, 'rt', encoding='UTF-8') as f:
         game_data = json.load(f)
-        datax = None
-        datay = None
         for agent, agent_data in game_data.items(): 
             if agent_data['valuations'] is not None: 
                 # agent is the name of the agent whose data is being processed 
@@ -185,16 +191,18 @@ def process_saved_game(filepath):
             
                 # TODO: If you are planning on learning from previously saved games enter your code below. 
                 # won_items = (MyLSVMAgent.map_to_ndarray(my_agent_submission, winner_history[-1], np.dtype('U100')) == agent).reshape(1,18)
-
+                # if len(price_history) == 0:
+                #     continue
+                
                 values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations)])
-                elos = np.array([(agent, int(elo.split()[0]))])
+                # prices = np.array(list(map(lambda x: MyLSVMAgent.map_to_ndarray(my_agent_submission, x), price_history)))
 
-                if datax is None:
-                    datay = elos
-                    datax = values
+                if agent not in data:
+                    data[agent] = [values]
                 else:
-                    datay = np.append(datay, elos, axis=0)
-                    datax = np.append(datax, values, axis=0)
+                    # if len(elo) != 0:
+                    # data[agent] = np.append(data[agent], values-prices, axis=0)
+                    data[agent].append(values)
                 
                 # prices = np.array(list(map(lambda x: MyLSVMAgent.map_to_ndarray(my_agent_submission, x).flatten(), price_history)))
                 # values = np.array([MyLSVMAgent.map_to_ndarray(my_agent_submission, valuations).flatten()])
@@ -202,25 +210,18 @@ def process_saved_game(filepath):
                 #     datax = values - prices
                 # else:
                 #     datax = np.append(datax,values - prices, axis=0)
-        return datax, datay
+        return data
         
 def process_saved_dir(dirpath): 
     """ 
      Here is some example code to load in all saved game in the format of a json.gz in a directory and to work with it
     """
-    datax = None
-    datay = None
+    data = {}
     for filename in os.listdir(dirpath):
         if filename.endswith('.json.gz'):
             filepath = os.path.join(dirpath, filename)
-            filedatax, filedatay = process_saved_game(filepath)
-            if datax is None:
-                datax = filedatax
-                datay = filedatay
-            else:
-                datax = np.append(datax, filedatax,axis=0)
-                datay = np.append(datay, filedatay,axis=0)
-    return datax, datay
+            data = process_saved_game(filepath, data)
+    return data
             
 
 if __name__ == "__main__":
@@ -254,10 +255,10 @@ if __name__ == "__main__":
         players=[
             MinBidAgent("Min Bidder"),
             MinBidAgent("Min Bidder2"),
-            JumpBidder("Jump Bidder"), 
+            TrainingAgent("Training Agent"), 
             JumpBidder("Jump Bidder2"), 
-            TruthfulBidder("Truthful Bidder"), 
-            MyAgent("Generation_4_Bot_5")
+            TruthfulBidder("Truthful Bidder"),  
+            MyAgent("RL Agent")
         ]
     )
     

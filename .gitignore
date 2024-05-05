@@ -3,3 +3,6 @@
 saved_games
 __pycache__
 models
+local_elo_ranking.json
+output.txt
+outputs

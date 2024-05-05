@@ -2,7 +2,6 @@ import glob
 import torch, sys, os
 import torch.nn as nn
 import torch.optim as optim
-# from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from my_agent import process_saved_dir
 import numpy as np
@@ -14,10 +13,11 @@ from agt_server.local_games.lsvm_arena import LSVMArena
 from agt_server.agents.test_agents.lsvm.min_bidder.my_agent import MinBidAgent
 from agt_server.agents.test_agents.lsvm.jump_bidder.jump_bidder import JumpBidder
 from agt_server.agents.test_agents.lsvm.truthful_bidder.my_agent import TruthfulBidder
-from my_agent import MyAgent
+from my_agent import MyAgent, TrainingAgent
 import time
-from torchsummary import summary
 import random
+import copy
+from data_load import process_their_output, process_our_output
 
 # Get cpu, gpu or mps device for training.
 device = (
@@ -30,80 +30,79 @@ device = (
 print(f"Using {device} device")
 
 
-"""def train(dataloader, model):
-    size = len(dataloader.dataset)
-    model.train()
-    for i, batch in enumerate(dataloader):
-        X, y = batch
-        X, y = X.to(device), y.to(device)
-
-        # Compute prediction error
-        pred = model(X)
-        loss = model.loss_fn(pred, y)
-
-        # Backpropagation
-        model.optimizer.zero_grad()
-        loss.backward()
-        model.optimizer.step()
-
-        if i % 100 == 0:
-            loss, current = loss.item(), (i + 1) * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-
-
-def test(dataloader, model):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    model.eval()
-    test_loss, correct = 0, 0
-    with torch.no_grad():
-        for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
-            pred = model(X)
-            test_loss += model.loss_fn(pred, y).item()
-            # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-            correct += (y - pred).absolute().sum()  
-    test_loss /= num_batches
-    # correct /= size
-    correct /= size*18
-    # print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
-    print(f"Test Error: \n Prediction Error: {(correct):>0.001f}, Avg loss: {test_loss:>8f} \n")
-
-
-if __name__ == "__main__":
-    datax, datay = process_saved_dir("saved_games")
-
-    tensor_x = torch.Tensor(datax) # transform to torch tensor
-    tensor_y = torch.Tensor(datay)
-
-    # train-test split for evaluation of the model
-    X_train, X_test, y_train, y_test = train_test_split(tensor_x, tensor_y, train_size=0.7, shuffle=True)
-    
-    # set up DataLoader for training set
-    loader = DataLoader(list(zip(X_train, y_train)), shuffle=True, batch_size=32)
-
-    model = PredictionNetwork()
-    model = model.to(device)
-
-
-    epochs = 10
-    for t in range(epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
-        train(loader, model)
-        test(loader, model)
-    
-    print("Done!")
-
-    torch.save(model.state_dict(), "model.pth")
-    print("Saved PyTorch Model State to model.pth")"""
-
-
 # Genetic algorithm parameters
-POPULATION_SIZE = 6
+POPULATION_SIZE = 10
 MUTATION_RATE = 0.1
 NUM_GENERATIONS = 5
+MODELS_PATH = "models/"
+DISCOUNT_FACTOR = 0.95
 
-def compute_fitness(model, train_loader, test_loader):
+
+def train(model, input, rewards):
+
+    discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
+    discount_rewards = torch.Tensor(discount_rewards.reshape(discount_rewards.shape[0],1))
+    
+    input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
+    input.to(device)
+    train_loader = DataLoader(list(zip(input, discount_rewards)), shuffle=True, batch_size=32)
+    for data, target in train_loader:
+        model.optimizer.zero_grad()
+        action_probs, critic_value = model(data)
+        diff = target - critic_value
+        actor_loss = -action_probs * diff
+        critic_loss = model.loss_fn(critic_value, target)
+        loss_value = torch.sum(actor_loss) + torch.sum(critic_loss)
+
+
+        loss_value.backward()
+        model.optimizer.step()
+
+    # with torch.GradientTape() as tape:
+    #     actor_losses = []
+    #     critic_losses = []
+
+    #     # print("actor history length:", len(actor_history))
+    #     # print("critic history length:", len(critic_history))
+    #     # print("discount rewards  length:", len(discount_rewards))
+
+    #     # for actor, critic, reward in zip(actor_history, critic_histort, discount_rewards):
+    #     for i in range (len(actor_history)):
+    #         actor = actor_history[i]
+    #         critic = critic_history[i]
+    #         reward = discount_rewards[i]
+            
+    #         actor = torch.cast(torch.reshape(actor, [-1]), torch.float32)
+    #         critic = torch.cast(critic, torch.float32)
+    #         reward = torch.cast(reward, 
+    #                             torch.float32)
+
+    #         diff = reward - critic
+
+    #         # Trying to make (6x3) * (2) compatitable
+    #         #actor = tf.reshape(actor, [-1]) # flatten
+    #         # print(critic_history)
+    #         # print(critic)
+    #         # print(diff[i])
+
+    #         # print("Actor shape:", actor.shape)
+    #         # print("Diff shape:", diff.shape)
+    #         # print("Reward shape:", reward.shape)
+
+    #         # print("DEBUG ============> -actor:", -actor)
+    #         # print("DEBUG ============>  diff: ", diff[i])
+
+    #         actor_losses.append(-actor * diff[i])  # actor loss
+
+    #         # The critic must be updated so that it predicts a better estimate of the future rewards.
+    #         critic_losses.append(self.huber_loss(torch.expand_dims(critic, 0), torch.expand_dims(reward, 0)))
+
+    #     # Backpropagation
+    #     loss_value = sum(actor_losses) + sum(critic_losses)
+    #     grads = tape.gradient(loss_value, self.model.trainable_variables)
+    #     self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+
+    #     self.critic_value_history.clear()
 
     # model.train()
     # for epoch in range(5):
@@ -127,6 +126,15 @@ def compute_fitness(model, train_loader, test_loader):
     # accuracy = correct / total
     # return accuracy
     pass
+
+def discount(rewards):
+    if len(rewards) == 1:
+        return rewards
+
+    indices = np.arange(len(rewards))
+    total = rewards[0]
+    total = total + np.sum(rewards[1:] * np.power(DISCOUNT_FACTOR, indices[1:]))
+    return np.concatenate((np.array([total]), discount(rewards[1:])))
 
 # Initialize genetic algorithm parameters
 def initialize_population(names):
@@ -153,7 +161,6 @@ def mutate(model):
             param.data += torch.randn_like(param.data) * 0.1  # Adding Gaussian noise with std=0.1
     return model
 
-
 def quickSort(array):
     if len(array)> 1:
         pivot=array.pop()
@@ -168,14 +175,23 @@ def quickSort(array):
         return (quickSort(smlr_lst) + equal_lst + quickSort(grtr_lst))
     else:
         return array
+    
 
-MODELS_PATH = "models/"
+            
+
+
 
 if __name__ == "__main__":
 
     population = None
     names = None
+    
     for generation in range(NUM_GENERATIONS):
+
+        files = glob.glob('outputs/*')
+        for f in files:
+            os.remove(f)
+
         files = glob.glob('saved_games/*')
         for f in files:
             os.remove(f)
@@ -194,43 +210,35 @@ if __name__ == "__main__":
         
         population_players = [MyAgent(name) for name in names]
 
-    
         default_players=[
-            MinBidAgent("Min Bidder"),
-            JumpBidder("Jump Bidder"), 
-            TruthfulBidder("Truthful Bidder"),]
+            MinBidAgent("Min_Bidder"),
+            JumpBidder("Jump_Bidder"), 
+            TruthfulBidder("Truthful_Bidder"),
+            TrainingAgent("Training_Agent"),]
 
+        bidders = copy.deepcopy(population_players)
+        bidders.extend(default_players)
 
         arena = LSVMArena(
             num_cycles_per_player = 1,
             timeout=1,
             local_save_path="saved_games",
-            players=population_players,
-        )
+            players=bidders,
+        )   
+
+        with open('output.txt', 'w') as sys.stdout:
+            arena.run()
+        sys.stdout = sys.__stdout__
+
+        # data = process_saved_dir("saved_games")
+        score = process_their_output('output.txt')
+        data = process_our_output()
         
-        # sys.stdout = open(os.devnull, 'w')
-        arena.run()
-        # sys.stdout = sys.__stdout__
-
-        datax, datay = process_saved_dir("saved_games")
-    
-
-        player_datax = {}
-        player_datay = {}
-        for i in range(datax.shape[0]):
-            name = datay[i][0]
-            if name not in player_datax:
-                player_datax[name] = datax[i].astype(np.float32)
-                player_datay[name] = datay[i][1].astype(np.float32)
-            else:
-                player_datax[name] = np.append(player_datax[name],(datax[i])).astype(np.float32)
-                player_datay[name] = np.append(player_datay[name],(datay[i][1])).astype(np.float32)
             
 
         # Compute fitness for each individual
         fitness_arr = []
         for individual in population:
-            print(individual.name)
             name = individual.name
             # X_train, X_test, y_train, y_test = train_test_split(player_datax[name], player_datay[name], train_size=0.7, shuffle=True)
         
@@ -238,13 +246,14 @@ if __name__ == "__main__":
             # test_loader = DataLoader(list(zip(X_test, y_test)), shuffle=True, batch_size=32)
 
             # fitness = compute_fitness(individual, train_loader, test_loader)
+            elo, utilities = score[name]
+            train(individual, data[name], utilities)
 
-            elo = player_datay[name]
+            
+            fitness = elo
 
-            # for i in range(len(elo)):
-            #     elo[i] = (1/(elo.shape[0] - i)) * elo[i]
-            # fitness = np.sum(elo)/elo.shape[0]
-            fitness = np.average(elo)
+            
+
 
             if fitness > best_accuracy:
                 best_accuracy = fitness
