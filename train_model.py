@@ -33,20 +33,19 @@ print(f"Using {device} device")
 # Genetic algorithm parameters
 POPULATION_SIZE = 10
 MUTATION_RATE = 0.01
-NUM_GENERATIONS = 50
+NUM_GENERATIONS = 100
 MODELS_PATH = "models/"
 DISCOUNT_FACTOR = 0.95
 
 
 def train(model, input, rewards):
-
-    discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
+    discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i]))[::-1] for i, x in enumerate(input)])
     discount_rewards = torch.Tensor(discount_rewards.reshape(discount_rewards.shape[0],1))
     
     input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
     input.to(device)
     train_loader = DataLoader(list(zip(input, discount_rewards)), shuffle=True, batch_size=32)
-    actor_losses = []
+    actor_losses = [] 
     critic_losses = []
     for data, target in train_loader:
         model.optimizer.zero_grad()
@@ -128,13 +127,8 @@ def train(model, input, rewards):
     pass
 
 def discount(rewards):
-    if len(rewards) == 1:
-        return rewards
-
-    indices = np.arange(len(rewards))
-    total = rewards[0]
-    total = total + np.sum(rewards[1:] * np.power(DISCOUNT_FACTOR, indices[1:]))
-    return np.concatenate((np.array([total]), discount(rewards[1:])))
+    indicies = np.arange(len(rewards))[::-1]
+    return rewards * np.power(DISCOUNT_FACTOR, indicies)
 
 # Initialize genetic algorithm parameters
 def initialize_population(names):
@@ -234,7 +228,8 @@ if __name__ == "__main__":
         score = process_their_output('output.txt')
         data = process_our_output()
         
-            
+        for key, val in score.items():
+            print(key, ": ", val[0])
 
         # Compute fitness for each individual
         fitness_arr = []
@@ -269,7 +264,9 @@ if __name__ == "__main__":
         next_generation = []
 
         # Select top individuals for next generation
-        selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
+        # selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
+        # selected_individuals = [i[0] for i in selected_individuals]
+        selected_individuals = fitness_arr[-2:]
         selected_individuals = [i[0] for i in selected_individuals]
 
         # Crossover and mutation

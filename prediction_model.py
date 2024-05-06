@@ -25,7 +25,7 @@ class PredictionNetwork(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
             self.conv2,
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Flatten(start_dim=1)
         )
         self.linear_actor = nn.Sequential(

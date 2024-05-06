@@ -100,7 +100,8 @@ class MyAgent(MyLSVMAgent):
 
     def regional_bidder_strategy(self):
         if self.get_min_bids_as_array() is not None:
-            utility = self.get_valuation_as_array() - self.get_min_bids_as_array()
+            min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array())
+            utility = self.get_valuation_as_array() - min_bids
         else:
             utility = self.get_valuation_as_array()
             
@@ -124,11 +125,11 @@ class MyAgent(MyLSVMAgent):
         return bids
 
     def convert_to_bids(self, action_values):        
-        min_bids = self.get_min_bids()
+        min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array()).flatten()
         bids = {}
         for i, good in enumerate(self.get_goods()):
-            if action_values[i] >= min_bids[good]:
-                bids[good] = min_bids[good]
+            if action_values[i] >= 0:
+                bids[good] = min_bids[i]
             else:
                 bids[good] = 0
         return bids
