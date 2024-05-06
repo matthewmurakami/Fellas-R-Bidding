@@ -26,7 +26,9 @@ def process_their_output(file_path):
             else:
                 elo = re.match("^\d+[\s]+([^\s]+)[\s]+(\d*[.,]?\d*)[\s]+(\d+)$", line)
 
-                output[elo.group(1)][0] = int(elo.group(3))
+                if elo:
+                    output[elo.group(1)][0] = int(elo.group(3))
+                    
     return output
 
 def process_our_output():

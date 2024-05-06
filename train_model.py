@@ -33,7 +33,7 @@ print(f"Using {device} device")
 # Genetic algorithm parameters
 POPULATION_SIZE = 10
 MUTATION_RATE = 0.1
-NUM_GENERATIONS = 5
+NUM_GENERATIONS = 50
 MODELS_PATH = "models/"
 DISCOUNT_FACTOR = 0.95
 
