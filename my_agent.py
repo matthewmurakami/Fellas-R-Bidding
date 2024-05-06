@@ -89,8 +89,8 @@ class MyAgent(MyLSVMAgent):
         super().__init__(name=name)
         self.model = PredictionNetwork()
         # if os.path.isfile(MODELS_PATH + self.name + ".pth"):
-        # if self.name != NAME:
-        #     self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
+        if self.name != NAME:
+            self.model.load_state_dict(load(MODELS_PATH + self.name+ ".pth"))
 
     def setup(self):
         pass

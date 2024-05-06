@@ -32,8 +32,8 @@ print(f"Using {device} device")
 
 # Genetic algorithm parameters
 POPULATION_SIZE = 10
-MUTATION_RATE = 0.1
-NUM_GENERATIONS = 5
+MUTATION_RATE = 0.01
+NUM_GENERATIONS = 50
 MODELS_PATH = "models/"
 DISCOUNT_FACTOR = 0.95
 
@@ -46,17 +46,17 @@ def train(model, input, rewards):
     input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
     input.to(device)
     train_loader = DataLoader(list(zip(input, discount_rewards)), shuffle=True, batch_size=32)
+    actor_losses = []
+    critic_losses = []
     for data, target in train_loader:
         model.optimizer.zero_grad()
         action_probs, critic_value = model(data)
         diff = target - critic_value
-        actor_loss = -action_probs * diff
-        critic_loss = model.loss_fn(critic_value, target)
-        loss_value = torch.sum(actor_loss) + torch.sum(critic_loss)
-
-
-        loss_value.backward()
-        model.optimizer.step()
+        actor_losses.append(-action_probs * diff)
+        critic_losses.append(model.loss_fn(critic_value, target))
+    loss_value = torch.sum(torch.cat(actor_losses)) + torch.sum(torch.Tensor(critic_losses))
+    loss_value.backward()
+    model.optimizer.step()
 
     # with torch.GradientTape() as tape:
     #     actor_losses = []
