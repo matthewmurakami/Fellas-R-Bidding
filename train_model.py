@@ -39,7 +39,7 @@ DISCOUNT_FACTOR = 0.95
 
 
 def train(model, input, rewards):
-    discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i]))[::-1] for i, x in enumerate(input)])
+    discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
     discount_rewards = torch.Tensor(discount_rewards.reshape(discount_rewards.shape[0],1))
     
     input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
@@ -127,6 +127,7 @@ def train(model, input, rewards):
     pass
 
 def discount(rewards):
+    return rewards
     indicies = np.arange(len(rewards))[::-1]
     return rewards * np.power(DISCOUNT_FACTOR, indicies)
 
@@ -190,7 +191,7 @@ if __name__ == "__main__":
         for f in files:
             os.remove(f)
         print("Generation:", generation + 1)
-        best_accuracy = 0
+        best_accuracy = float('-inf')
         best_individual = None
 
        
@@ -214,7 +215,7 @@ if __name__ == "__main__":
         bidders.extend(default_players)
 
         arena = LSVMArena(
-            num_cycles_per_player = 1,
+            num_cycles_per_player = 5,
             timeout=1,
             local_save_path="saved_games",
             players=bidders,
@@ -264,10 +265,10 @@ if __name__ == "__main__":
         next_generation = []
 
         # Select top individuals for next generation
-        # selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
-        # selected_individuals = [i[0] for i in selected_individuals]
-        selected_individuals = fitness_arr[-2:]
+        selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
         selected_individuals = [i[0] for i in selected_individuals]
+        # selected_individuals = fitness_arr[-2:]
+        # selected_individuals = [i[0] for i in selected_individuals]
 
         # Crossover and mutation
         names = ["Generation_" + str(generation+1)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]

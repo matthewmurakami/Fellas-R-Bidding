@@ -30,6 +30,7 @@ class PredictionNetwork(nn.Module):
         )
         self.linear_actor = nn.Sequential(
             nn.Linear(1152, 18),  # Adjust this line based on actual output size
+            nn.ReLU()
         )
         self.linear_critic = nn.Sequential(
             nn.Linear(1152, 1),  # Adjust this line based on actual output size

@@ -99,11 +99,12 @@ class MyAgent(MyLSVMAgent):
         return self.regional_bidder_strategy()
 
     def regional_bidder_strategy(self):
-        if self.get_min_bids_as_array() is not None:
-            min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array())
-            utility = self.get_valuation_as_array() - min_bids
-        else:
-            utility = self.get_valuation_as_array()
+        # if self.get_min_bids_as_array() is not None:
+        #     min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array())
+        #     utility = self.get_valuation_as_array() - min_bids
+        # else:
+        #     utility = self.get_valuation_as_array()
+        utility = self.get_valuation_as_array()
             
 
         
@@ -113,8 +114,7 @@ class MyAgent(MyLSVMAgent):
                 f.write("New Auction\n")
                 f.write("\n")
                 f.write("\n")
-            else:
-                np.savetxt(f, utility)
+            np.savetxt(f, utility)
         
 
 
@@ -125,11 +125,18 @@ class MyAgent(MyLSVMAgent):
         return bids
 
     def convert_to_bids(self, action_values):        
-        min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array()).flatten()
+        # min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array()).flatten()
+        # bids = {}
+        # for i, good in enumerate(self.get_goods()):
+        #     if action_values[i] >= 0:
+        #         bids[good] = min_bids[i]
+        #     else:
+        #         bids[good] = 0
+        # return bids
         bids = {}
         for i, good in enumerate(self.get_goods()):
-            if action_values[i] >= 0:
-                bids[good] = min_bids[i]
+            if  self.get_min_bids()[good] <= self.get_valuation(good) + action_values[i]:
+                bids[good] = self.get_min_bids()[good]
             else:
                 bids[good] = 0
         return bids
@@ -250,7 +257,7 @@ if __name__ == "__main__":
     # )
 
     arena = LSVMArena(
-        num_cycles_per_player = 3,
+        num_cycles_per_player = 10,
         timeout=1,
         local_save_path="saved_games",
         players=[
@@ -259,7 +266,7 @@ if __name__ == "__main__":
             TrainingAgent("Training Agent"), 
             JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"),  
-            MyAgent("RL Agent")
+            MyAgent("Generation_17_Bot_6")
         ]
     )
     

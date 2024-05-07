@@ -24,10 +24,10 @@ def process_their_output(file_path):
                     elo_section = True
                     continue
             else:
-                elo = re.match("^\d+[\s]+([^\s]+)[\s]+(\d*[.,]?\d*)[\s]+(\d+)$", line)
+                elo = re.match("^\d+[\s]+([^\s]+)[\s]+(-?\d*[.,]?\d*)[\s]+(\d+)$", line)
 
                 if elo:
-                    output[elo.group(1)][0] = int(elo.group(3))
+                    output[elo.group(1)][0] = float(elo.group(2))
                     
     return output
 
