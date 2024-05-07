@@ -56,6 +56,9 @@ def process_our_output():
 
             line2 = file.readline().strip()
             line3 = file.readline().strip()
+            line4 = file.readline().strip()
+            line5 = file.readline().strip()
+            line6 = file.readline().strip()
 
             if line1 == "New Auction":
                 if first_iter:
@@ -78,10 +81,16 @@ def process_our_output():
                 arr1 = line1.split(" ")
                 arr2 = line2.split(" ")
                 arr3 = line3.split(" ")
-                np_arr = np.asarray([arr1,
+                arr4 = line4.split(" ")
+                arr5 = line5.split(" ")
+                arr6 = line6.split(" ")
+                value_arr = np.asarray([arr1,
                                      arr2,
                                      arr3], dtype=np.float32)
-                round_list.append(np_arr)
+                price_arr = np.asarray([arr1,
+                                     arr2,
+                                     arr3], dtype=np.float32)
+                round_list.append(np.stack((value_arr,price_arr)))
                     
         file.close()
 

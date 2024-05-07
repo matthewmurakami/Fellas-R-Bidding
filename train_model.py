@@ -42,7 +42,7 @@ def train(model, input, rewards):
     discount_rewards = np.concatenate([discount(np.full((x.shape[0]),rewards[i])) for i, x in enumerate(input)])
     discount_rewards = torch.Tensor(discount_rewards.reshape(discount_rewards.shape[0],1))
     
-    input = torch.Tensor(np.concatenate(input)).unsqueeze(1)
+    input = torch.Tensor(np.concatenate(input))
     input.to(device)
     train_loader = DataLoader(list(zip(input, discount_rewards)), shuffle=True, batch_size=32)
     actor_losses = [] 
@@ -127,7 +127,6 @@ def train(model, input, rewards):
     pass
 
 def discount(rewards):
-    return rewards
     indicies = np.arange(len(rewards))[::-1]
     return rewards * np.power(DISCOUNT_FACTOR, indicies)
 
@@ -215,7 +214,7 @@ if __name__ == "__main__":
         bidders.extend(default_players)
 
         arena = LSVMArena(
-            num_cycles_per_player = 5,
+            num_cycles_per_player = 4,
             timeout=1,
             local_save_path="saved_games",
             players=bidders,

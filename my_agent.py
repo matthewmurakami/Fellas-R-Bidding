@@ -12,6 +12,8 @@ import torch
 import numpy as np
 from prediction_model import PredictionNetwork
 from torch import load, from_numpy
+import itertools
+import copy
 
 
 MODELS_PATH = "models/"
@@ -84,6 +86,162 @@ class TrainingAgent(MyLSVMAgent):
     def update(self):
         pass 
 
+class TrainingAgent2(MyLSVMAgent):
+    def setup(self):
+        pass
+
+    def find_best_bundles(self, goods, max_bundle_size=6, top_x_bundles = 10):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+                                    
+        return best_bundles
+
+    def regional_bidder_strategy(self):
+        bids = {}
+        all_goods = self.get_goods()
+        min_bids = self.get_min_bids()
+        for good in min_bids:
+            if  min_bids[good] < self.get_valuation(good):
+                bids[good] = min_bids[good]
+            else:
+                bids[good] = 0
+
+        best_bundles = self.find_best_bundles(all_goods)
+
+        for bundle in best_bundles:
+            utility = self.calc_total_utility(bundle[0])
+            if utility > 0:
+                for good in bundle[0]:
+                    bids[good] = min_bids[good]
+        return bids
+
+    def get_bids(self):
+        return self.regional_bidder_strategy()
+
+    def update(self):
+        pass
+
+
+class RegretAgent(MyLSVMAgent):
+    def setup(self):
+        pass 
+
+    def find_best_goods(self, goods, max_bundle_size=8, top_x_bundles = 10, good_limit=10):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+        
+        best_goods = set()                          
+        for bundle in best_bundles:
+            cur_goods = set(bundle[0])
+            if len(best_goods | cur_goods) <= good_limit:
+                best_goods |= cur_goods
+        return best_goods
+
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+
+    def regional_bidder_strategy(self): 
+        self.get_partitions
+        bids = {}
+        if self.get_current_round() == 0:
+            # if hasattr(self, 'first'):
+            #     exit()
+            # self.first = True
+            # print("values: ", self.get_valuations())
+            # self.biddable_items = copy.deepcopy(self.get_goods())
+            self.biddable_items = self.find_best_goods(self.get_goods())
+            
+            self.dropped_items = self.get_goods() - self.biddable_items
+            return self.get_valuations()
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        # print("prices diff: ", self.ndarray_to_map(self.get_valuation_as_array() - self.get_current_prices()))
+
+
+        while(True):
+            items_to_drop = set()
+            for good in self.biddable_items:
+                best_bundle = None
+                if self.get_valuation(good) >= self.get_min_bids()[good]:
+                    bids[good] = self.get_valuation(good)
+                    continue
+                max_regret = float("-inf")
+                remaining_items = self.biddable_items - {good}
+                combinations = [com for sub in range(10) for com in itertools.combinations(remaining_items, min(sub + 1, len(remaining_items)))]
+                # for bundle in itertools.combinations(remaining_items, min(6,len(remaining_items))):
+                for bundle in combinations:
+                    bundle = set(bundle)
+                    regret = self.calc_total_utility(bundle | {good}) - self.calc_total_utility(bundle)
+                    if max_regret < regret:
+                        max_regret = regret
+                        best_bundle = (bundle | set(good), regret)
+                # print(good, best_bundle)
+                if max_regret < 0:
+                    # print("dropping: ", good)
+                    bids[good] = self.get_valuation(good)
+                    items_to_drop.add(good)
+                else:
+                    # bids[good] = self.get_min_bids()[good] + best_bundle[1] / len(best_bundle[0])
+                    bids[good] = self.get_min_bids()[good]
+            if(len(items_to_drop) == 0):
+                break
+            self.dropped_items |= items_to_drop
+            self.biddable_items -= items_to_drop
+        return bids
+        
+
+    def get_bids(self):
+        # t1_start = time.process_time()
+        if self.is_national_bidder(): 
+            bids = self.national_bidder_strategy()
+        else: 
+            bids = self.regional_bidder_strategy()
+        # t1_stop = time.process_time()
+        # print("time: ",t1_stop - t1_start)
+        return bids
+    
+    def update(self):
+        pass 
+
 class MyAgent(MyLSVMAgent):
     def __init__(self, name=None):
         super().__init__(name=name)
@@ -104,17 +262,22 @@ class MyAgent(MyLSVMAgent):
         #     utility = self.get_valuation_as_array() - min_bids
         # else:
         #     utility = self.get_valuation_as_array()
-        utility = self.get_valuation_as_array()
-            
+        values = self.get_valuation_as_array()
+        prices = self.get_min_bids_as_array()
+        state = np.stack((values,prices))
 
         
-        state = torch.unsqueeze(torch.unsqueeze(torch.Tensor(utility),0),0)
+        state = torch.unsqueeze(torch.Tensor(state),0)
         with open(f"outputs/{self.name}.txt", "a") as f:
             if self.get_current_round() == 0:
                 f.write("New Auction\n")
                 f.write("\n")
                 f.write("\n")
-            np.savetxt(f, utility)
+                f.write("\n")
+                f.write("\n")
+                f.write("\n")
+            np.savetxt(f, values)
+            np.savetxt(f, prices)
         
 
 
@@ -154,7 +317,7 @@ class MyAgent(MyLSVMAgent):
 
 
 ################### SUBMISSION #####################
-my_agent_submission = MyAgent(NAME)
+my_agent_submission = RegretAgent(NAME)
 ####################################################
 
 
@@ -257,16 +420,18 @@ if __name__ == "__main__":
     # )
 
     arena = LSVMArena(
-        num_cycles_per_player = 10,
+        num_cycles_per_player =    1,
         timeout=1,
         local_save_path="saved_games",
         players=[
             MinBidAgent("Min Bidder"),
-            MinBidAgent("Min Bidder2"),
-            TrainingAgent("Training Agent"), 
-            JumpBidder("Jump Bidder2"), 
+            # MinBidAgent("Min Bidder2"),
+            TrainingAgent("Training Agent"),  
+            JumpBidder("Jump Bidder"),
             TruthfulBidder("Truthful Bidder"),  
-            MyAgent("Generation_17_Bot_6")
+            TrainingAgent2("Training Agent 2"),
+            RegretAgent("Regret Agent"),
+            
         ]
     )
     

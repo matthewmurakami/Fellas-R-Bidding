@@ -16,7 +16,7 @@ device = (
 class PredictionNetwork(nn.Module):    
     def __init__(self, name=None):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(2, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.name = name
 
