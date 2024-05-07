@@ -31,7 +31,7 @@ print(f"Using {device} device")
 
 
 # Genetic algorithm parameters
-POPULATION_SIZE = 10
+POPULATION_SIZE = 1
 MUTATION_RATE = 0.01
 NUM_GENERATIONS = 100
 MODELS_PATH = "models/"
@@ -56,74 +56,6 @@ def train(model, input, rewards):
     loss_value = torch.sum(torch.cat(actor_losses)) + torch.sum(torch.Tensor(critic_losses))
     loss_value.backward()
     model.optimizer.step()
-
-    # with torch.GradientTape() as tape:
-    #     actor_losses = []
-    #     critic_losses = []
-
-    #     # print("actor history length:", len(actor_history))
-    #     # print("critic history length:", len(critic_history))
-    #     # print("discount rewards  length:", len(discount_rewards))
-
-    #     # for actor, critic, reward in zip(actor_history, critic_histort, discount_rewards):
-    #     for i in range (len(actor_history)):
-    #         actor = actor_history[i]
-    #         critic = critic_history[i]
-    #         reward = discount_rewards[i]
-            
-    #         actor = torch.cast(torch.reshape(actor, [-1]), torch.float32)
-    #         critic = torch.cast(critic, torch.float32)
-    #         reward = torch.cast(reward, 
-    #                             torch.float32)
-
-    #         diff = reward - critic
-
-    #         # Trying to make (6x3) * (2) compatitable
-    #         #actor = tf.reshape(actor, [-1]) # flatten
-    #         # print(critic_history)
-    #         # print(critic)
-    #         # print(diff[i])
-
-    #         # print("Actor shape:", actor.shape)
-    #         # print("Diff shape:", diff.shape)
-    #         # print("Reward shape:", reward.shape)
-
-    #         # print("DEBUG ============> -actor:", -actor)
-    #         # print("DEBUG ============>  diff: ", diff[i])
-
-    #         actor_losses.append(-actor * diff[i])  # actor loss
-
-    #         # The critic must be updated so that it predicts a better estimate of the future rewards.
-    #         critic_losses.append(self.huber_loss(torch.expand_dims(critic, 0), torch.expand_dims(reward, 0)))
-
-    #     # Backpropagation
-    #     loss_value = sum(actor_losses) + sum(critic_losses)
-    #     grads = tape.gradient(loss_value, self.model.trainable_variables)
-    #     self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
-
-    #     self.critic_value_history.clear()
-
-    # model.train()
-    # for epoch in range(5):
-    #     for data, target in train_loader:
-    #         model.optimizer.zero_grad()
-    #         output = model(data)
-    #         loss = model.loss_fn(output, target[1])
-    #         loss.backward()
-    #         model.optimizer.step()
-
-    # model.eval()
-    # correct = 0
-    # total = 0
-    # with torch.no_grad():
-    #     for data, target in test_loader:
-    #         output = model(data)
-    #         _, predicted = torch.max(output.data, 1)
-    #         total += target[1].size(0)
-    #         correct += (predicted == target[1]).sum().item()
-
-    # accuracy = correct / total
-    # return accuracy
     pass
 
 def discount(rewards):
@@ -136,8 +68,6 @@ def initialize_population(names):
     population = []
     for i in range(POPULATION_SIZE):
         model = PredictionNetwork(name=names[i])
-        # print(summary(model, (1,3,6)))
-        # exit()
         population.append(model)
     return population
 
@@ -171,11 +101,6 @@ def quickSort(array):
     else:
         return array
     
-
-            
-
-
-
 if __name__ == "__main__":
 
     population = None
@@ -194,7 +119,6 @@ if __name__ == "__main__":
         best_accuracy = float('-inf')
         best_individual = None
 
-       
         # Initialize population
         if population is None:
             names = ["Generation_" + str(generation)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
@@ -209,7 +133,8 @@ if __name__ == "__main__":
             MinBidAgent("Min_Bidder"),
             JumpBidder("Jump_Bidder"), 
             TruthfulBidder("Truthful_Bidder"),
-            TrainingAgent("Training_Agent"),]
+            TrainingAgent("Training_Agent"),
+            MinBidAgent("Min_Bidder2")]
 
         bidders = copy.deepcopy(population_players)
         bidders.extend(default_players)
@@ -236,47 +161,38 @@ if __name__ == "__main__":
         fitness_arr = []
         for individual in population:
             name = individual.name
-            # X_train, X_test, y_train, y_test = train_test_split(player_datax[name], player_datay[name], train_size=0.7, shuffle=True)
-        
-            # train_loader = DataLoader(list(zip(X_train, y_train)), shuffle=True, batch_size=32)
-            # test_loader = DataLoader(list(zip(X_test, y_test)), shuffle=True, batch_size=32)
-
-            # fitness = compute_fitness(individual, train_loader, test_loader)
             elo, utilities = score[name]
             train(individual, data[name], utilities)
 
-            
-            fitness = elo
 
-            
+        #     fitness = elo
 
-
-            if fitness > best_accuracy:
-                best_accuracy = fitness
-                best_individual = individual
+        #     if fitness > best_accuracy:
+        #         best_accuracy = fitness
+        #         best_individual = individual
             
-            fitness_arr.append((individual, fitness))
+        #     fitness_arr.append((individual, fitness))
         
-        fitness_arr = quickSort(fitness_arr)
+        # fitness_arr = quickSort(fitness_arr)
 
-        print("Best accuracy in generation", generation + 1, ":", best_accuracy)
-        print("Best individual:", best_individual.name)
+        # print("Best accuracy in generation", generation + 1, ":", best_accuracy)
+        # print("Best individual:", best_individual.name)
 
-        next_generation = []
+        # next_generation = []
 
-        # Select top individuals for next generation
-        selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
-        selected_individuals = [i[0] for i in selected_individuals]
-        # selected_individuals = fitness_arr[-2:]
+        # # Select top individuals for next generation
+        # selected_individuals = fitness_arr[-POPULATION_SIZE // 2:]
         # selected_individuals = [i[0] for i in selected_individuals]
+        # # selected_individuals = fitness_arr[-2:]
+        # # selected_individuals = [i[0] for i in selected_individuals]
 
-        # Crossover and mutation
-        names = ["Generation_" + str(generation+1)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
-        for i in range(0, POPULATION_SIZE, 2):
-            parent1, parent2 = random.sample(selected_individuals,2)
-            child1, child2 = crossover(parent1, parent2, names[i], names[i+1])
-            child1 = mutate(child1)
-            child2 = mutate(child2)
-            next_generation.extend([child1, child2])
+        # # Crossover and mutation
+        # names = ["Generation_" + str(generation+1)+ "_Bot_" + str(i) for i in range(POPULATION_SIZE)]
+        # for i in range(0, POPULATION_SIZE, 2):
+        #     parent1, parent2 = random.sample(selected_individuals,2)
+        #     child1, child2 = crossover(parent1, parent2, names[i], names[i+1])
+        #     child1 = mutate(child1)
+        #     child2 = mutate(child2)
+        #     next_generation.extend([child1, child2])
 
-        population = next_generation
+        # population = next_generation

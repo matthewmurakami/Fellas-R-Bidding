@@ -36,7 +36,7 @@ class PredictionNetwork(nn.Module):
             nn.Linear(1152, 1),  # Adjust this line based on actual output size
         )
         self.loss_fn = nn.HuberLoss(delta=1.0)
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.005)
 
     def forward(self, x):
         common = self.linear_common(x)

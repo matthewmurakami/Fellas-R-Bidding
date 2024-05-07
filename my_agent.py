@@ -12,12 +12,14 @@ import torch
 import numpy as np
 from prediction_model import PredictionNetwork
 from torch import load, from_numpy
-
+from itertools import combinations
+import time
+import sys
 
 MODELS_PATH = "models/"
-NAME = 'Fellas-R-Bidding'
+NAME = 'Abandon Ship'
 
-class TrainingAgent(MyLSVMAgent):
+class Original_Training_Agent(MyLSVMAgent):
     def setup(self):
         pass 
     
@@ -53,7 +55,6 @@ class TrainingAgent(MyLSVMAgent):
         max = np.max(avg_val_matrix)
         locX,loxY = np.where(avg_val_matrix == max)
         loc = (locX[0],loxY[0])
-        #print(loc)
 
         for good in goods:
             good_val = valuations[good]
@@ -84,6 +85,190 @@ class TrainingAgent(MyLSVMAgent):
     def update(self):
         pass 
 
+class Matt_Ultra_Greedy_Agent(MyLSVMAgent):
+    def setup(self):
+        pass
+
+    def get_averages(self, val_matrix):
+        avg_matrix = np.zeros((3, 6))
+        for iy, ix in np.ndindex(val_matrix.shape):
+            neighbors = []
+            if iy - 1 >= 0:
+                neighbors.append(val_matrix[iy-1, ix])
+            if iy + 1 < 3:
+                neighbors.append(val_matrix[iy+1, ix])
+            if ix - 1 >= 0:
+                neighbors.append(val_matrix[iy, ix-1])
+            if ix + 1 < 6:
+                neighbors.append(val_matrix[iy, ix+1])
+            avg_matrix[iy, ix] = np.mean(neighbors) if neighbors else 0
+        return avg_matrix
+
+    def evaluate_bundle(self, bundle):
+        valuations = self.get_valuations(bundle)
+        total_valuation = 0
+        for item in valuations:
+            total_valuation += valuations[item]
+        
+        synergy_factor = 1.1 if len(bundle) > 1 else 1
+        return total_valuation * synergy_factor
+
+    def find_best_bundle(self, goods, max_bundle_size=10):
+        best_value = 0
+        best_bundle = []
+        for size in range(1, max_bundle_size + 1):
+            for bundle in combinations(goods, size):
+                bundle_value = self.evaluate_bundle(bundle)
+                if bundle_value > best_value:
+                    best_value = bundle_value
+                    best_bundle = bundle
+        return best_bundle, best_value
+
+    def regional_bidder_strategy(self):
+        min_bids = self.get_min_bids()
+        goods = self.get_goods()
+        bids = {}
+
+        best_bundle, best_bundle_value = self.find_best_bundle(goods)
+        bundle_min_bid = sum(min_bids[good] for good in best_bundle)
+
+        # Bidding strategy for identified bundle
+        for good in goods:
+            good_min_bid = min_bids[good]
+            if good in best_bundle:
+                bid_value = good_min_bid if good_min_bid < self.get_valuation(good) else self.get_valuation(good) 
+                bids[good] = max(good_min_bid, bid_value)
+            else:
+                bids[good] = 0 
+
+        return bids
+
+    def get_bids(self):
+        # if self.is_national_bidder():
+        #     return self.national_bidder_strategy()
+        # else:
+        return self.regional_bidder_strategy()
+
+    def update(self):
+        pass
+
+class Matt_Greedy_Agent(MyLSVMAgent):
+    def setup(self):
+        pass
+
+    def get_averages(self, val_matrix):
+        avg_matrix = np.zeros((3, 6))
+        for iy, ix in np.ndindex(val_matrix.shape):
+            neighbors = []
+            if iy - 1 >= 0:
+                neighbors.append(val_matrix[iy-1, ix])
+            if iy + 1 < 3:
+                neighbors.append(val_matrix[iy+1, ix])
+            if ix - 1 >= 0:
+                neighbors.append(val_matrix[iy, ix-1])
+            if ix + 1 < 6:
+                neighbors.append(val_matrix[iy, ix+1])
+            avg_matrix[iy, ix] = np.mean(neighbors) if neighbors else 0
+        return avg_matrix
+
+    def evaluate_bundle(self, bundle):
+        valuations = self.get_valuations(bundle)
+        total_valuation = 0
+        for item in valuations:
+            total_valuation += valuations[item]
+    
+        return self.calc_total_utility(bundle)
+
+    def find_best_bundle(self, goods, max_bundle_size=6):
+        best_value = 0
+        best_bundle = []
+        for size in range(1, max_bundle_size + 1):
+            for bundle in combinations(goods, size):
+                bundle_value = self.evaluate_bundle(bundle)
+                if bundle_value > best_value:
+                    best_value = bundle_value
+                    best_bundle = bundle
+        return best_bundle, best_value
+
+    def regional_bidder_strategy(self):
+        min_bids = self.get_min_bids()
+        goods = self.get_goods()
+        bids = {}
+
+        best_bundle, best_bundle_value = self.find_best_bundle(goods)
+        bundle_min_bid = sum(min_bids[good] for good in best_bundle)
+
+        # Bidding strategy for identified bundle
+        for good in goods:
+            good_min_bid = min_bids[good]
+            if good in best_bundle:
+                bid_value = good_min_bid if good_min_bid < self.get_valuation(good) else self.get_valuation(good) 
+                bids[good] = max(good_min_bid, bid_value)
+            else:
+                bids[good] = 0  # Not bidding on non-bundle items
+
+        return bids
+
+    def get_bids(self):
+        return self.regional_bidder_strategy()
+
+    def update(self):
+        pass
+
+class Matt_Smart_Greedy_Agent(MyLSVMAgent):
+    def setup(self):
+        pass
+
+    def find_best_bundles(self, goods, max_bundle_size=6, top_x_bundles = 10):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+                                    
+        return best_bundles
+
+    def regional_bidder_strategy(self):
+        bids = {}
+        all_goods = self.get_goods()
+        min_bids = self.get_min_bids()
+        for good in min_bids:
+            if  min_bids[good] < self.get_valuation(good):
+                bids[good] = min_bids[good]
+            else:
+                bids[good] = 0
+
+        best_bundles = self.find_best_bundles(all_goods)
+
+        for bundle in best_bundles:
+            utility = self.calc_total_utility(bundle[0])
+            if utility > 0:
+                for good in bundle[0]:
+                    bids[good] = min_bids[good]
+        return bids
+
+    def get_bids(self):
+        return self.regional_bidder_strategy()
+
+    def update(self):
+        pass
+
 class MyAgent(MyLSVMAgent):
     def __init__(self, name=None):
         super().__init__(name=name)
@@ -99,15 +284,8 @@ class MyAgent(MyLSVMAgent):
         return self.regional_bidder_strategy()
 
     def regional_bidder_strategy(self):
-        # if self.get_min_bids_as_array() is not None:
-        #     min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array())
-        #     utility = self.get_valuation_as_array() - min_bids
-        # else:
-        #     utility = self.get_valuation_as_array()
         utility = self.get_valuation_as_array()
-            
-
-        
+                 
         state = torch.unsqueeze(torch.unsqueeze(torch.Tensor(utility),0),0)
         with open(f"outputs/{self.name}.txt", "a") as f:
             if self.get_current_round() == 0:
@@ -115,9 +293,6 @@ class MyAgent(MyLSVMAgent):
                 f.write("\n")
                 f.write("\n")
             np.savetxt(f, utility)
-        
-
-
 
         action_probs, critic_value = self.model.forward(state)
         action_probs = torch.flatten(action_probs)
@@ -125,14 +300,6 @@ class MyAgent(MyLSVMAgent):
         return bids
 
     def convert_to_bids(self, action_values):        
-        # min_bids = np.where(self.get_valuation_as_array() > self.get_min_bids_as_array(), self.get_valuation_as_array(), self.get_min_bids_as_array()).flatten()
-        # bids = {}
-        # for i, good in enumerate(self.get_goods()):
-        #     if action_values[i] >= 0:
-        #         bids[good] = min_bids[i]
-        #     else:
-        #         bids[good] = 0
-        # return bids
         bids = {}
         for i, good in enumerate(self.get_goods()):
             if  self.get_min_bids()[good] <= self.get_valuation(good) + action_values[i]:
@@ -143,7 +310,6 @@ class MyAgent(MyLSVMAgent):
     
     def update(self):
         pass 
-    
 
     def get_bids(self):
         if self.is_national_bidder(): 
@@ -151,12 +317,9 @@ class MyAgent(MyLSVMAgent):
         else: 
             return self.regional_bidder_strategy()
 
-
-
 ################### SUBMISSION #####################
-my_agent_submission = MyAgent(NAME)
+my_agent_submission = Original_Training_Agent(NAME)
 ####################################################
-
 
 def process_saved_game(filepath, data): 
     """ 
@@ -234,11 +397,6 @@ def process_saved_dir(dirpath):
 
 if __name__ == "__main__":
     
-    # Heres an example of how to process a singular file 
-    # process_saved_game(path_from_local_root("saved_games/2024-04-08_17-36-34.json.gz"))
-    # or every file in a directory 
-    # process_saved_dir(path_from_local_root("saved_games"))
-    
     ### DO NOT TOUCH THIS #####
     # agent = MyAgent(NAME)
     # arena = LSVMArena(
@@ -257,20 +415,22 @@ if __name__ == "__main__":
     # )
 
     arena = LSVMArena(
-        num_cycles_per_player = 10,
+        num_cycles_per_player = 3,
         timeout=1,
         local_save_path="saved_games",
         players=[
             MinBidAgent("Min Bidder"),
             MinBidAgent("Min Bidder2"),
-            TrainingAgent("Training Agent"), 
+            JumpBidder("Jump Bidder"), 
             JumpBidder("Jump Bidder2"), 
             TruthfulBidder("Truthful Bidder"),  
-            MyAgent("Generation_17_Bot_6")
+            Original_Training_Agent("Original_Training_Agent")
         ]
     )
     
     start = time.time()
-    arena.run()
+    with open('Original_Training_Agent.txt', 'w') as sys.stdout:
+        arena.run()
+    sys.stdout = sys.__stdout__
     end = time.time()
     print(f"{end - start} Seconds Elapsed")

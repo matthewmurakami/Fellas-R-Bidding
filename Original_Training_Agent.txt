@@ -1,0 +1,91 @@
+Auction 1: Jump Bidder (National) VS Jump Bidder2 VS Truthful Bidder VS Min Bidder2 VS Original_Training_Agent VS Min Bidder
+Jump Bidder won Good P at Price 8.96, Good J at Price 6.73, Good E at Price 6.50, Good Q at Price 3.64, Good L at Price 6.50, Good K at Price 6.50, Good R at Price 3.20, Good F at Price 4.20.
+Jump Bidder got a final utility of 23.63291066787034
+Jump Bidder2 won Good C at Price 5.45.
+Jump Bidder2 got a final utility of 0.4210018336903616
+Truthful Bidder won Good N at Price 7.80, Good H at Price 7.74.
+Truthful Bidder got a final utility of 3.1670234245380087
+Min Bidder2 won Good A at Price 6.50.
+Min Bidder2 got a final utility of 1.222117929736112
+Original_Training_Agent won Good G at Price 9.23, Good B at Price 9.22, Good D at Price 6.50.
+Original_Training_Agent got a final utility of 0.6606490864167327
+Min Bidder won Good I at Price 7.74, Good M at Price 8.70, Good O at Price 7.46.
+Min Bidder got a final utility of 3.745374069991705
+Auction 2: Jump Bidder VS Jump Bidder2 (National) VS Truthful Bidder VS Min Bidder2 VS Original_Training_Agent VS Min Bidder
+Jump Bidder won Good G at Price 8.67, Good I at Price 8.67, Good H at Price 7.53, Good A at Price 6.61.
+Jump Bidder got a final utility of 25.734372455659738
+Jump Bidder2 won Good B at Price 8.62, Good N at Price 7.43, Good L at Price 8.08, Good K at Price 7.09, Good R at Price 4.30, Good F at Price 5.90.
+Jump Bidder2 got a final utility of 1.8887169138965874
+Truthful Bidder won Good C at Price 8.56, Good D at Price 8.41, Good O at Price 8.02.
+Truthful Bidder got a final utility of 3.9762509529752386
+Min Bidder2 won Good M at Price 5.90.
+Min Bidder2 got a final utility of 3.5592780725254247
+Original_Training_Agent won Good P at Price 6.27, Good Q at Price 7.38.
+Original_Training_Agent got a final utility of 1.5278064765903814
+Min Bidder won Good J at Price 4.37, Good E at Price 7.86.
+Min Bidder got a final utility of 1.0089349785566526
+Auction 3: Jump Bidder VS Jump Bidder2 VS Truthful Bidder (National) VS Min Bidder2 VS Original_Training_Agent VS Min Bidder
+Jump Bidder won Good Q at Price 6.12.
+Jump Bidder got a final utility of 0.46754759621705944
+Jump Bidder2 won Good C at Price 7.18, Good D at Price 8.17.
+Jump Bidder2 got a final utility of 2.947923427656553
+Truthful Bidder won Good B at Price 6.18, Good M at Price 4.90, Good O at Price 7.73, Good H at Price 8.04, Good E at Price 5.70, Good A at Price 8.82, Good K at Price 7.51.
+Truthful Bidder got a final utility of 2.7903235678988665
+Min Bidder2 won Good J at Price 6.48, Good N at Price 7.81, Good I at Price 6.70.
+Min Bidder2 got a final utility of 3.1948885936896723
+Original_Training_Agent won Good G at Price 8.64.
+Original_Training_Agent got a final utility of 0.3438640961127657
+Min Bidder won Good P at Price 8.20, Good L at Price 5.70, Good R at Price 8.74, Good F at Price 5.70.
+Min Bidder got a final utility of 17.089762406038957
+Auction 4: Jump Bidder VS Jump Bidder2 VS Truthful Bidder VS Min Bidder2 (National) VS Original_Training_Agent VS Min Bidder
+Jump Bidder won Good P at Price 8.22, Good E at Price 5.80, Good Q at Price 7.56, Good L at Price 7.50, Good K at Price 5.90.
+Jump Bidder got a final utility of 41.193502357001776
+Jump Bidder2 won Good N at Price 7.90, Good M at Price 8.27.
+Jump Bidder2 got a final utility of 3.170509728756695
+Truthful Bidder won Good C at Price 8.93, Good H at Price 7.19, Good A at Price 8.90.
+Truthful Bidder got a final utility of 1.965542934904093
+Min Bidder2 won Good J at Price 6.57, Good I at Price 8.83, Good R at Price 3.40, Good F at Price 3.80.
+Min Bidder2 got a final utility of 0.2777419088996069
+Original_Training_Agent won Good G at Price 6.90, Good B at Price 9.00, Good D at Price 8.40.
+Original_Training_Agent got a final utility of 0.10935264151033408
+Min Bidder won Good O at Price 8.78.
+Min Bidder got a final utility of 0.7034571197509738
+Auction 5: Jump Bidder VS Jump Bidder2 VS Truthful Bidder VS Min Bidder2 VS Original_Training_Agent (National) VS Min Bidder
+Jump Bidder won Good B at Price 8.00, Good M at Price 6.80, Good J at Price 7.64, Good C at Price 7.27, Good A at Price 8.00, Good I at Price 8.51.
+Jump Bidder got a final utility of 48.638806006987465
+Jump Bidder2 won Good L at Price 7.30, Good E at Price 7.95.
+Jump Bidder2 got a final utility of 1.2622668874940253
+Truthful Bidder won Good D at Price 8.00.
+Truthful Bidder got a final utility of 1.3242149338458287
+Min Bidder2 won Good P at Price 8.00, Good Q at Price 8.00, Good K at Price 8.40, Good R at Price 8.00, Good F at Price 6.36.
+Min Bidder2 got a final utility of 30.249929743475533
+Original_Training_Agent won Good G at Price 7.40, Good N at Price 8.00, Good H at Price 7.20.
+Original_Training_Agent got a final utility of -1.5529099084015847
+Min Bidder won Good O at Price 8.00.
+Min Bidder got a final utility of 0.638464979048333
+Auction 6: Jump Bidder VS Jump Bidder2 VS Truthful Bidder VS Min Bidder2 VS Original_Training_Agent VS Min Bidder (National)
+Jump Bidder won Good A at Price 7.10.
+Jump Bidder got a final utility of 2.027942641154201
+Jump Bidder2 won Good C at Price 8.42, Good E at Price 6.70.
+Jump Bidder2 got a final utility of 1.2609990842403462
+Truthful Bidder won Good K at Price 7.60.
+Truthful Bidder got a final utility of 0.6684491417776499
+Min Bidder2 won Good Q at Price 4.90, Good R at Price 7.10.
+Min Bidder2 got a final utility of 2.9691181224098937
+Original_Training_Agent won Good P at Price 8.87, Good O at Price 7.10, Good J at Price 9.86, Good H at Price 9.44, Good N at Price 5.90, Good I at Price 9.75.
+Original_Training_Agent got a final utility of 67.0478498097554
+Min Bidder won Good B at Price 6.90, Good M at Price 7.10, Good G at Price 7.82, Good D at Price 8.29, Good L at Price 4.00, Good F at Price 7.10.
+Min Bidder got a final utility of 0.9187456492330739
+Auction 7: Jump Bidder (National) VS Jump Bidder2 VS Truthful Bidder VS Min Bidder2 VS Original_Training_Agent VS Min Bidder
+Jump Bidder won Good G at Price 7.15, Good Q at Price 6.32, Good F at Price 4.60, Good O at Price 8.63.
+Jump Bidder got a final utility of 0.1487330784728016
+Jump Bidder2 won Good C at Price 5.55, Good L at Price 6.59, Good E at Price 6.14.
+Jump Bidder2 got a final utility of 1.566516987764647
+Truthful Bidder won Good B at Price 6.23, Good H at Price 8.68.
+Truthful Bidder got a final utility of 3.029256884412014
+Min Bidder2 won Good P at Price 8.83, Good D at Price 8.16, Good K at Price 7.81, Good I at Price 8.37, Good R at Price 7.70.
+Min Bidder2 got a final utility of 3.39187982206019
+Original_Training_Agent won Good A at Price 8.14, Good N at Price 7.72, Good M at Price 7.79.
+Original_Training_Agent got a final utility of 1.4742041633818488
+Min Bidder won Good J at Price 6.55.
+Min Bidder got a final utility of 0.5035778504366375
