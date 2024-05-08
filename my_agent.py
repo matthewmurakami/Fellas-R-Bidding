@@ -173,6 +173,14 @@ class RegretAgent(MyLSVMAgent):
             cur_goods = set(bundle[0])
             if len(best_goods | cur_goods) <= good_limit:
                 best_goods |= cur_goods
+            else:
+                while(len(best_goods) < good_limit and len(cur_goods - best_goods) != 0):
+                    best_item = (None,float('-inf'))
+                    best_good_val = self.calc_total_valuation(best_goods)
+                    for item in cur_goods - best_goods:
+                        diff = best_good_val - self.calc_total_valuation(best_goods - {item})
+                        best_item = best_item if best_item[1] > diff else (item,diff)
+                    best_goods.add(best_item[0])
         return best_goods
 
     def national_bidder_strategy(self): 
@@ -180,7 +188,6 @@ class RegretAgent(MyLSVMAgent):
 
 
     def regional_bidder_strategy(self): 
-        self.get_partitions
         bids = {}
         if self.get_current_round() == 0:
             # if hasattr(self, 'first'):
@@ -242,6 +249,528 @@ class RegretAgent(MyLSVMAgent):
     def update(self):
         pass 
 
+class RegretAgent2(MyLSVMAgent):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.regret_mult = .9
+
+    def setup(self):
+        pass 
+
+    def find_best_goods(self, goods, max_bundle_size=6, top_x_bundles = 30, good_limit=8):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+        
+        best_goods = set()                          
+        for bundle in best_bundles:
+            cur_goods = set(bundle[0])
+            if len(best_goods | cur_goods) <= good_limit:
+                best_goods |= cur_goods
+            else:
+                while(len(best_goods) < good_limit and len(cur_goods - best_goods) != 0):
+                    best_item = (None,float('-inf'))
+                    best_good_val = self.calc_total_valuation(best_goods)
+                    for item in cur_goods - best_goods:
+                        diff = best_good_val - self.calc_total_valuation(best_goods - {item})
+                        best_item = best_item if best_item[1] > diff else (item,diff)
+                    best_goods.add(best_item[0])
+        return best_goods
+
+    
+
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+
+    def regional_bidder_strategy(self): 
+        bids = {}
+        if self.get_current_round() == 0:
+            # print("values: ", self.get_valuations())
+            # self.biddable_items = copy.deepcopy(self.get_goods())
+            self.biddable_items = self.find_best_goods(self.get_goods())
+            
+            self.dropped_items = self.get_goods() - self.biddable_items
+            return self.get_valuations()
+        # print("prices diff: ", self.ndarray_to_map(self.get_valuation_as_array() - self.get_current_prices()))
+
+        biddable_utility = self.calc_total_utility(self.biddable_items)
+        combinations = [com for sub in range(len(self.biddable_items)) for com in itertools.combinations(self.biddable_items,sub + 1)]
+        marginal_bundle_utility = {}
+        items_to_drop = set()
+        for bundle in combinations:
+            
+            marginal_utility = biddable_utility - self.calc_total_utility(self.biddable_items - set(bundle))
+            marginal_bundle_utility[bundle] = marginal_utility
+            if marginal_utility < 0:
+                for good in bundle:
+                    items_to_drop |= set(bundle)
+        self.biddable_items -= items_to_drop
+        self.dropped_items |= items_to_drop
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        for good in self.biddable_items:
+            bids[good] = self.get_min_bids()[good]
+        return bids
+        
+
+    def get_bids(self):
+        t1_start = time.process_time()
+        if self.is_national_bidder(): 
+            bids = self.national_bidder_strategy()
+        else: 
+            bids = self.regional_bidder_strategy()
+        t1_stop = time.process_time()
+        print("time: ",t1_stop - t1_start)
+        return bids
+    
+    def update(self):
+        pass
+class RiskRegretAgent(MyLSVMAgent):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.risk_mult = 1
+
+    def setup(self):
+        pass 
+
+    def find_best_goods(self, goods, max_bundle_size=6, top_x_bundles = 30, good_limit=8):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+        
+        best_goods = set()                          
+        for bundle in best_bundles:
+            cur_goods = set(bundle[0])
+            if len(best_goods | cur_goods) <= good_limit:
+                best_goods |= cur_goods
+            else:
+                while(len(best_goods) < good_limit and len(cur_goods - best_goods) != 0):
+                    best_item = (None,float('-inf'))
+                    best_good_val = self.calc_total_valuation(best_goods)
+                    for item in cur_goods - best_goods:
+                        diff = best_good_val - self.calc_total_valuation(best_goods - {item})
+                        best_item = best_item if best_item[1] > diff else (item,diff)
+                    best_goods.add(best_item[0])
+        return best_goods
+
+    def compute_risk_reward(self, bundle):
+        partition = self.get_partitions(bundle)
+        reward = 0
+        for part in partition:
+            reward += self.calc_total_valuation(part)*pow(self.risk_mult, len(part) - 1) - self.calc_total_prices(part)
+        return reward
+
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+
+    def regional_bidder_strategy(self): 
+        bids = {}
+        if self.get_current_round() == 0:
+            # print("values: ", self.get_valuations())
+            # self.biddable_items = copy.deepcopy(self.get_goods())
+            self.biddable_items = self.find_best_goods(self.get_goods())
+            
+            self.dropped_items = self.get_goods() - self.biddable_items
+            return self.get_valuations()
+        # t1_start = time.process_time()
+        # print("prices diff: ", self.ndarray_to_map(self.get_valuation_as_array() - self.get_current_prices()))
+
+        biddable_utility = self.compute_risk_reward(self.biddable_items)
+        combinations = [com for sub in range(len(self.biddable_items)) for com in itertools.combinations(self.biddable_items,sub + 1)]
+        items_to_drop = set()
+        for bundle in combinations:
+            bundle = set(bundle)
+            marginal_regret = biddable_utility - self.compute_risk_reward(self.biddable_items - bundle)
+            if marginal_regret < 0:
+                items_to_drop |= bundle
+        self.biddable_items -= items_to_drop
+        self.dropped_items |= items_to_drop
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        for good in self.biddable_items:
+            bids[good] = self.get_min_bids()[good]
+        # t1_stop = time.process_time()
+        # print("time: ",t1_stop - t1_start)
+        return bids
+        
+
+    def get_bids(self):
+        # t1_start = time.process_time()
+        if self.is_national_bidder(): 
+            bids = self.national_bidder_strategy()
+        else: 
+            bids = self.regional_bidder_strategy()
+        # t1_stop = time.process_time()
+        # print("time: ",t1_stop - t1_start)
+        return bids
+    
+    def update(self):
+        pass 
+
+class RiskRegretAgent2(MyLSVMAgent):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.risk_mult = .9
+
+    def setup(self):
+        pass 
+
+    def find_best_goods(self, goods, max_bundle_size=8, top_x_bundles = 10, good_limit=10):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+        
+        best_goods = set()                          
+        for bundle in best_bundles:
+            cur_goods = set(bundle[0])
+            if len(best_goods | cur_goods) <= good_limit:
+                best_goods |= cur_goods
+            else:
+                while(len(best_goods) < good_limit and len(cur_goods - best_goods) != 0):
+                    best_item = (None,float('-inf'))
+                    best_good_val = self.calc_total_valuation(best_goods)
+                    for item in cur_goods - best_goods:
+                        diff = best_good_val - self.calc_total_valuation(best_goods - {item})
+                        best_item = best_item if best_item[1] > diff else (item,diff)
+                    best_goods.add(best_item[0])
+        return best_goods
+    
+    def compute_risk_reward(self, bundle):
+        partition = self.get_partitions(bundle)
+        reward = 0
+        for part in partition:
+            reward += self.calc_total_valuation(part)*pow(self.risk_mult, len(part) - 1) - self.calc_total_prices(part)
+        return reward
+
+
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+
+    def regional_bidder_strategy(self): 
+        bids = {}
+        if self.get_current_round() == 0:
+            # if hasattr(self, 'first'):
+            #     exit()
+            # self.first = True
+            # print("values: ", self.get_valuations())
+            # self.biddable_items = copy.deepcopy(self.get_goods())
+            self.biddable_items = self.find_best_goods(self.get_goods())
+            
+            self.dropped_items = self.get_goods() - self.biddable_items
+            return self.get_valuations()
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        # print("prices diff: ", self.ndarray_to_map(self.get_valuation_as_array() - self.get_current_prices()))
+
+
+        items_to_drop = set()
+        max_regret = {}
+        for bundle in [com for sub in range(len(self.biddable_items)) for com in itertools.combinations(self.biddable_items, sub + 1)]:
+            # best_bundle = None
+            
+            # for bundle in itertools.combinations(remaining_items, min(6,len(remaining_items))):
+            for good_set in [com for sub in range(min(len(bundle),1)) for com in itertools.combinations(bundle, sub + 1)]:
+                bundle = set(bundle)
+                regret = self.compute_risk_reward(bundle) - self.compute_risk_reward(bundle - set(good_set))
+                if good_set not in max_regret:
+                    max_regret[good_set] = regret
+                elif max_regret[good_set] < regret:
+                    max_regret[good_set] = regret
+                    # best_bundle = (bundle | set(good), regret)
+            # print(good, best_bundle)
+        for good_set, regret in max_regret.items():
+            if regret < 0:
+                self.dropped_items |= items_to_drop
+                self.biddable_items -= items_to_drop
+        
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        for good in self.biddable_items:
+            bids[good] = self.get_min_bids()[good]
+        return bids
+        
+
+    def get_bids(self):
+        # t1_start = time.process_time()
+        if self.is_national_bidder(): 
+            bids = self.national_bidder_strategy()
+        else: 
+            bids = self.regional_bidder_strategy()
+        # t1_stop = time.process_time()
+        # print("time: ",t1_stop - t1_start)
+        return bids
+    
+    def update(self):
+        pass 
+
+    def setup(self):
+        pass 
+
+    def find_best_goods(self, goods, max_bundle_size=8, top_x_bundles = 10, good_limit=10):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+        
+        best_goods = set()                          
+        for bundle in best_bundles:
+            cur_goods = set(bundle[0])
+            if len(best_goods | cur_goods) <= good_limit:
+                best_goods |= cur_goods
+            else:
+                while(len(best_goods) < good_limit and len(cur_goods - best_goods) != 0):
+                    best_item = (None,float('-inf'))
+                    best_good_val = self.calc_total_valuation(best_goods)
+                    for item in cur_goods - best_goods:
+                        diff = best_good_val - self.calc_total_valuation(best_goods - {item})
+                        best_item = best_item if best_item[1] > diff else (item,diff)
+                    best_goods.add(best_item[0])
+        return best_goods
+
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+
+    def regional_bidder_strategy(self): 
+        bids = {}
+        if self.get_current_round() == 0:
+            # if hasattr(self, 'first'):
+            #     exit()
+            # self.first = True
+            # print("values: ", self.get_valuations())
+            # self.biddable_items = copy.deepcopy(self.get_goods())
+            self.biddable_items = self.find_best_goods(self.get_goods())
+            
+            self.dropped_items = self.get_goods() - self.biddable_items
+            return self.get_valuations()
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        # print("prices diff: ", self.ndarray_to_map(self.get_valuation_as_array() - self.get_current_prices()))
+
+
+        while(True):
+            items_to_drop = set()
+            for good in self.biddable_items:
+                best_bundle = None
+                if self.get_valuation(good) >= self.get_min_bids()[good]:
+                    bids[good] = self.get_valuation(good)
+                    continue
+                max_regret = float("-inf")
+                remaining_items = self.biddable_items - {good}
+                combinations = [com for sub in range(10) for com in itertools.combinations(remaining_items, min(sub + 1, len(remaining_items)))]
+                # for bundle in itertools.combinations(remaining_items, min(6,len(remaining_items))):
+                for bundle in combinations:
+                    bundle = set(bundle)
+                    regret = self.calc_total_utility(bundle | {good}) - self.calc_total_utility(bundle)
+                    if max_regret < regret:
+                        max_regret = regret
+                        best_bundle = (bundle | set(good), regret)
+                # print(good, best_bundle)
+                if max_regret < 0:
+                    # print("dropping: ", good)
+                    bids[good] = self.get_valuation(good)
+                    items_to_drop.add(good)
+                else:
+                    # bids[good] = self.get_min_bids()[good] + best_bundle[1] / len(best_bundle[0])
+                    bids[good] = self.get_min_bids()[good]
+            if(len(items_to_drop) == 0):
+                break
+            self.dropped_items |= items_to_drop
+            self.biddable_items -= items_to_drop
+        return bids
+
+class RiskRegretAgent3(MyLSVMAgent):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.risk_mult = .9
+    def setup(self):
+        pass 
+
+    def find_best_goods(self, goods, max_bundle_size=8, top_x_bundles = 10, good_limit=10):
+        best_bundles = []
+        
+        # for size in range(1, max_bundle_size + 1):
+        for bundle in itertools.combinations(goods, max_bundle_size):
+            total_valuation = self.calc_total_valuation(bundle)
+            
+            if len(best_bundles) != top_x_bundles:
+                if best_bundles == []:
+                    best_bundles.append((bundle, total_valuation))
+                else:
+                    for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            break
+                                
+            elif total_valuation > best_bundles[-1][1]:
+                for i in range(len(best_bundles)):
+                        if total_valuation > best_bundles[i][1]:
+                            best_bundles.insert(i,(bundle, total_valuation))
+                            best_bundles.pop(-1)
+                            break                    
+        
+        best_goods = set()                          
+        for bundle in best_bundles:
+            cur_goods = set(bundle[0])
+            if len(best_goods | cur_goods) <= good_limit:
+                best_goods |= cur_goods
+            else:
+                while(len(best_goods) < good_limit and len(cur_goods - best_goods) != 0):
+                    best_item = (None,float('-inf'))
+                    best_good_val = self.calc_total_valuation(best_goods)
+                    for item in cur_goods - best_goods:
+                        diff = best_good_val - self.calc_total_valuation(best_goods - {item})
+                        best_item = best_item if best_item[1] > diff else (item,diff)
+                    best_goods.add(best_item[0])
+        return best_goods
+    
+    def compute_risk_reward(self, bundle):
+        partition = self.get_partitions(bundle)
+        reward = 0
+        for part in partition:
+            reward += self.calc_total_valuation(part)*pow(self.risk_mult, len(part) - 1) - self.calc_total_prices(part)
+        return reward
+
+    def national_bidder_strategy(self): 
+        return self.regional_bidder_strategy()
+
+
+    def regional_bidder_strategy(self): 
+        bids = {}
+        if self.get_current_round() == 0:
+            # if hasattr(self, 'first'):
+            #     exit()
+            # self.first = True
+            # print("values: ", self.get_valuations())
+            # self.biddable_items = copy.deepcopy(self.get_goods())
+            self.biddable_items = self.find_best_goods(self.get_goods())
+            
+            self.dropped_items = self.get_goods() - self.biddable_items
+            return self.get_valuations()
+        for good in self.dropped_items:
+            bids[good] = self.get_valuation(good)
+        # print("prices diff: ", self.ndarray_to_map(self.get_valuation_as_array() - self.get_current_prices()))
+
+
+        while(True):
+            items_to_drop = set()
+            for good in self.biddable_items:
+                # best_bundle = None
+                if self.get_valuation(good) >= self.get_min_bids()[good]:
+                    bids[good] = self.get_valuation(good)
+                    continue
+                max_regret = float("-inf")
+                remaining_items = self.biddable_items - {good}
+                combinations = [com for sub in range(10) for com in itertools.combinations(remaining_items, min(sub + 1, len(remaining_items)))]
+                # for bundle in itertools.combinations(remaining_items, min(6,len(remaining_items))):
+                for bundle in combinations:
+                    bundle = set(bundle)
+                    bundle_risk = self.compute_risk_reward(bundle)
+                    regret = self.compute_risk_reward(bundle | {good}) - bundle_risk
+                    if max_regret < regret:
+                        max_regret = regret
+                        # best_bundle = (bundle | set(good), regret)
+                # print(good, best_bundle)
+                if max_regret < 0:
+                    # print("dropping: ", good)
+                    bids[good] = self.get_valuation(good)
+                    items_to_drop.add(good)
+                else:
+                    # bids[good] = self.get_min_bids()[good] + best_bundle[1] / len(best_bundle[0])
+                    bids[good] = self.get_min_bids()[good]
+            if(len(items_to_drop) == 0):
+                break
+            self.dropped_items |= items_to_drop
+            self.biddable_items -= items_to_drop
+        return bids
+        
+
+    def get_bids(self):
+        # t1_start = time.process_time()
+        if self.is_national_bidder(): 
+            bids = self.national_bidder_strategy()
+        else: 
+            bids = self.regional_bidder_strategy()
+        # t1_stop = time.process_time()
+        # print("time: ",t1_stop - t1_start)
+        return bids
+    
+    def update(self):
+        pass 
 class MyAgent(MyLSVMAgent):
     def __init__(self, name=None):
         super().__init__(name=name)
@@ -425,12 +954,15 @@ if __name__ == "__main__":
         local_save_path="saved_games",
         players=[
             MinBidAgent("Min Bidder"),
-            # MinBidAgent("Min Bidder2"),
+            MinBidAgent("Min Bidder2"),
             TrainingAgent("Training Agent"),  
             JumpBidder("Jump Bidder"),
             TruthfulBidder("Truthful Bidder"),  
-            TrainingAgent2("Training Agent 2"),
-            RegretAgent("Regret Agent"),
+            # RegretAgent("Regret Agent"),
+            # RiskRegretAgent("Risk Regret Agent"),
+            # RiskRegretAgent2("Risk Regret Agent2"),
+            RiskRegretAgent3("Risk Regret Agent3"),
+
             
         ]
     )
